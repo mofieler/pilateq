@@ -49,9 +49,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV NODE_PATH=/usr/local/lib/node_modules
 
-# Install drizzle-kit globally for runtime migrations (npm global is accessible to all users)
-RUN npm install -g drizzle-kit
+# Install drizzle-kit + dotenv globally for runtime migrations
+RUN npm install -g drizzle-kit dotenv
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
@@ -63,9 +64,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
-# Copy migration files and drizzle config for runtime migrations
+# Copy migration files, schema and drizzle config for runtime migrations
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/db/migrations ./src/db/migrations
+COPY --from=builder --chown=nextjs:nodejs /app/src/db/schema ./src/db/schema
 
 # Ensure public directory has correct permissions for standalone mode
 RUN chmod -R 755 /app/public 2>/dev/null || true && \
