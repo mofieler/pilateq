@@ -50,9 +50,10 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Install wget for the Dockerfile HEALTHCHECK (busybox wget is available by default)
-# and ensure ca-certificates are present for HTTPS health probes.
-RUN apk add --no-cache ca-certificates
+# Install ca-certificates for HTTPS health probes and wget as a fallback.
+# We also keep Node.js available in the image, so the healthcheck uses node -e
+# to avoid any busybox/wget compatibility issues on Alpine.
+RUN apk add --no-cache ca-certificates wget
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
@@ -80,6 +81,7 @@ RUN cd /app/migrate && npm install && chown -R nextjs:nodejs /app/migrate
 # Ensure public directory has correct permissions for standalone mode
 RUN chmod -R 755 /app/public 2>/dev/null || true && \
     chmod +x /app/scripts/*.sh 2>/dev/null || true && \
+    chmod +x /app/scripts/*.mjs 2>/dev/null || true && \
     chmod +x /app/migrate/run.mjs
 
 # Create avatars and storage upload directory and ensure nextjs user can write to it
@@ -94,11 +96,14 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-# Health check for Coolify (uses busybox wget, preferred over node -e).
-# start-period is intentionally generous (180s) so the initial Drizzle
-# migration on a fresh database has enough time before the first probe.
-HEALTHCHECK --interval=10s --timeout=10s --start-period=180s --retries=5 \
-    CMD wget -qO- http://localhost:3000/api/health || exit 1
+# Health check for Coolify. Uses a tiny Node.js script so the probe is
+# independent of busybox wget and works reliably under the non-root nextjs
+# user on Alpine.
+# start-period is generous (600s) because the entrypoint runs Drizzle migrations
+# before the Next.js server starts; on a small VPS with a fresh DB this can
+# take several minutes.
+HEALTHCHECK --interval=10s --timeout=10s --start-period=600s --retries=5 \
+    CMD node /app/scripts/healthcheck.mjs
 
 # Entrypoint runs migrations with an advisory lock, then starts the app.
 # This is safer than Coolify's post-deployment command because the DB is ready

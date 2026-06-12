@@ -1,0 +1,12 @@
+# Ensure Linux line endings for files consumed inside Docker containers.
+# This prevents shell scripts and Dockerfiles from breaking when cloned on
+# Windows hosts with core.autocrlf=true.
+Dockerfile text eol=lf
+*.sh text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf

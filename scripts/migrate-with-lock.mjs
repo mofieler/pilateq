@@ -16,12 +16,26 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 
 const LOCK_ID = 824726341; // arbitrary, stable integer used as advisory lock key
 
+function log(message) {
+  console.log(`[migrate ${new Date().toISOString()}] ${message}`);
+}
+
 async function run() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is not set');
   }
 
-  const client = postgres(process.env.DATABASE_URL, { max: 1 });
+  log(`Connecting to database...`);
+  const client = postgres(process.env.DATABASE_URL, {
+    max: 1,
+    // Defensive timeouts so a stuck migration or a lock held by a previous
+    // crashed deployment cannot block the container forever. statement_timeout
+    // is intentionally large (600s) because applying a big initial schema with
+    // many indexes on a slow VPS can take several minutes.
+    connect_timeout: 30,
+    statement_timeout: 600,
+    lock_timeout: 30,
+  });
 
   try {
     // 1) Acquire advisory lock (non-blocking first, then poll)
@@ -33,7 +47,7 @@ async function run() {
     locked = acquired;
 
     if (!locked) {
-      console.log('[migrate] Another instance is already running migrations, waiting...');
+      log('Another instance is already running migrations, waiting...');
       while (!locked) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         const [{ acquired: now }] = await client.unsafe(
@@ -45,10 +59,10 @@ async function run() {
     }
 
     // 2) Run migrations
-    console.log('[migrate] Applying pending migrations...');
+    log('Applying pending migrations...');
     const db = drizzle(client);
     await migrate(db, { migrationsFolder: './src/db/migrations' });
-    console.log('[migrate] Migrations finished successfully.');
+    log('Migrations finished successfully.');
   } finally {
     await client.unsafe('SELECT pg_advisory_unlock($1)', [LOCK_ID]).catch(() => {});
     await client.end().catch(() => {});
@@ -56,6 +70,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  console.error('[migrate] Migration failed:', err.message || err);
+  console.error(`[migrate ${new Date().toISOString()}] Migration failed:`, err.message || err);
   process.exit(1);
 });
