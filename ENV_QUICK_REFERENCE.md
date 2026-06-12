@@ -138,7 +138,7 @@ pnpm start
 | Forget `TRUSTED_PROXY_COUNT` | Set to number of proxies (1 for Cloudflare) | Wrong IP detection breaks rate limiting |
 | Use test Stripe keys in prod | Use `sk_live_` and `pk_live_` keys | Transactions won't work, charges won't go through |
 | Commit `.env.local` to git | Add to `.gitignore` (already done) | Exposes secrets publicly |
-| Forget waivers migration | Run `pnpm db:migrate` | Waiver signing breaks in production |
+| Forget to deploy migrations | Migrations run automatically on container start | If the entrypoint fails, the container won't start; check logs |
 | Leave `REDIS_URL` empty in prod | Set to actual Redis instance | Rate limiting returns to in-memory (single instance) |
 
 ---
@@ -176,7 +176,7 @@ redis-cli ping
 5. **Set environment variables** in Coolify UI:
    - Paste all values from "Production Full Setup" above
 6. **Deploy** → wait 5-10 minutes
-7. **Run migration**: `pnpm db:migrate` (or manual SQL)
+7. **Migration**: runs automatically on container start (Dockerfile entrypoint). Manual fallback in Coolify terminal: `node /app/migrate/run.mjs`
 8. **Verify**: Visit `https://yourdomain.com` ✓
 
 ---

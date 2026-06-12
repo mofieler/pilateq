@@ -28,7 +28,7 @@ Do not delete files from `archived/`, and do not move archived migrations back i
 ### Fresh database deploy
 
 - [ ] Provision an empty PostgreSQL database.
-- [ ] Set `DATABASE_URL` and run `pnpm db:migrate` (or `node_modules/.bin/drizzle-kit migrate`).
+- [ ] Set `DATABASE_URL`. Migrations run automatically on container start via the Dockerfile entrypoint. For local development run `pnpm db:migrate`.
 - [ ] Confirm `_journal.json` shows migrations `0000`, `0001`, `0002`, `0003`, `0007`, `0008` as applied.
 - [ ] Run `pnpm db:seed` once if seed data is required.
 - [ ] Verify the app starts and `/api/health` returns `database: ok`.

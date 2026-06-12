@@ -346,23 +346,25 @@ Apply the active sequence in order:
 5. `0007_add_studios_created_by_user_id.sql`
 6. `0008_studio_id_not_null.sql`
 
-You can run them with the pre-deployment command (recommended):
+Migrations run automatically when the container starts via the Dockerfile entrypoint. You do not need a Coolify Pre-deployment Command.
+
+If you must run them manually inside the Coolify terminal:
 
 ```sh
-pnpm db:migrate
+node /app/migrate/run.mjs
 ```
 
-Or manually inside the Coolify terminal:
+Or directly with the bundled `drizzle-kit` binary:
 
 ```sh
-node_modules/.bin/drizzle-kit migrate
+/app/migrate/node_modules/.bin/drizzle-kit migrate
 ```
 
 #### Existing database
 
 If the database already has production data, check `src/db/migrations/meta/_journal.json` first and apply **only** migrations that are not already recorded in the journal. Do not re-apply `0000` or any `archived/` migration. When in doubt, back up the database before running migrations.
 
-> **Recommended:** set `pnpm db:migrate` as a Coolify **Pre-deployment Command** so every deploy applies only pending migrations before swapping containers.
+> **Recommended:** leave the Coolify Pre-deployment Command empty. The Dockerfile `ENTRYPOINT` handles migrations safely with a PostgreSQL advisory lock before the app starts. If you previously set `pnpm db:migrate` there, remove it because `pnpm` is not available in the runner image.
 
 ### 5.2 Seed (only on a fresh database, not after every deploy)
 
@@ -446,10 +448,10 @@ Tick in order. Don't skip ahead.
 6. [ ] Postgres service created in Coolify, `DATABASE_URL` copied to a vault.
 7. [ ] Application created in Coolify pointing at the GitHub repo.
 8. [ ] Env vars from §4.1 set; `AUTH_SECRET` generated and saved.
-9. [ ] Pre-deployment command set to `pnpm db:migrate`.
+9. [ ] Pre-deployment command is empty (migrations run automatically via Dockerfile entrypoint).
 10. [ ] First deploy triggered. Watch logs in Coolify until "Ready in Xms".
 11. [ ] `curl https://app.yourstudio.com/api/health` returns 200.
-12. [ ] Open Coolify terminal, run `pnpm db:seed` (one time only).
+12. [ ] Seed the database once. The easiest way is to run `pnpm db:seed` from your local machine with `DATABASE_URL` temporarily pointing at the production database, or to execute the seed SQL/statements manually in the Coolify terminal.
 13. [ ] Visit `https://app.yourstudio.com/login`, log in as `admin@pilatesos.com` / `password123`.
 14. [ ] **Immediately change the admin password** via the admin profile page (or directly in the DB).
 15. [ ] Smoke test the four critical flows manually:
@@ -466,7 +468,7 @@ Tick in order. Don't skip ahead.
 ## Part 9 — Post-deploy ops
 
 ### Updating the app
-Push to `main` → Coolify auto-builds → migrations run via pre-deployment hook → zero-downtime swap. If something breaks, Coolify keeps the previous container; click **Rollback** in the UI.
+Push to `main` → Coolify auto-builds → new container starts, applies migrations via entrypoint, passes health check → zero-downtime swap. If something breaks, Coolify keeps the previous container; click **Rollback** in the UI.
 
 ### Reading logs
 Coolify → application → **Logs**. For DB queries you'll need to enable Drizzle logger (off by default in [src/db/index.ts](src/db/index.ts) — flip with an env var when debugging).

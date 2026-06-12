@@ -275,19 +275,20 @@ Leave empty for MVP. Used only for video uploads.
 
 ---
 
-## 🗃️ Step 8 — Set Up Database Migrations
+## 🗃️ Step 8 — Database Migrations
 
-We want migrations to run automatically every time you deploy.
+Migrations run **automatically when the container starts** via the Dockerfile entrypoint (`scripts/docker-entrypoint.sh`).
 
-1. In your Coolify application, go to the **General** tab.
-2. Find **Pre-deployment Command**.
-3. Enter:
-   ```bash
-   pnpm db:migrate
-   ```
-4. Save.
+You do **not** need to set a Coolify Pre-deployment Command for pilatesOS. The entrypoint:
 
-This runs `drizzle-kit migrate` inside the container before the new version goes live.
+1. Acquires a PostgreSQL advisory lock (safe if multiple instances start at once)
+2. Runs pending migrations with `drizzle-kit migrate`
+3. Starts the Next.js standalone server
+
+> **Note:** `pnpm` and the project `node_modules` are not present in the final runner image. If you ever need to run migrations manually in the Coolify terminal, use:
+> ```bash
+> node /app/migrate/run.mjs
+> ```
 
 ---
 
@@ -403,9 +404,8 @@ After the first deploy, updating is automatic:
 
 1. Push your code to GitHub `main` branch.
 2. Coolify detects the push and starts a new build.
-3. Pre-deployment command runs `pnpm db:migrate`.
-4. New container starts.
-5. Coolify swaps traffic to the new container (zero-downtime).
+3. New container starts and automatically applies pending migrations before the health check.
+4. Coolify swaps traffic to the new container (zero-downtime).
 
 If something breaks, go to **Deployments** in Coolify and click **Redeploy** on the previous successful version.
 

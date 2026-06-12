@@ -10,6 +10,9 @@ export default defineConfig({
   schema: './src/db/schema/index.ts',
   out: './src/db/migrations',
   dialect: 'postgresql',
+  // strict: true prevents ambiguous renames from being executed as destructive
+  // drop+add operations. Always keep this enabled for production migrations.
+  strict: true,
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },

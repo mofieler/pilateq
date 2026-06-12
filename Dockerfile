@@ -49,10 +49,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-ENV NODE_PATH=/usr/local/lib/node_modules
 
-# Install drizzle-kit + dotenv globally for runtime migrations
-RUN npm install -g drizzle-kit dotenv
+# Install wget for the Dockerfile HEALTHCHECK (busybox wget is available by default)
+# and ensure ca-certificates are present for HTTPS health probes.
+RUN apk add --no-cache ca-certificates
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
@@ -69,9 +69,18 @@ COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.confi
 COPY --from=builder --chown=nextjs:nodejs /app/src/db/migrations ./src/db/migrations
 COPY --from=builder --chown=nextjs:nodejs /app/src/db/schema ./src/db/schema
 
+# ── Local migration tool layer ───────────────────────────────────────────────
+# We install drizzle-kit + drizzle-orm + driver locally in /app/migrate instead
+# of globally. Global installs do not resolve drizzle-orm as a peer dependency,
+# which breaks `drizzle-kit migrate` inside the running container.
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate-package.json ./migrate/package.json
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate-with-lock.mjs ./migrate/run.mjs
+RUN cd /app/migrate && npm install && chown -R nextjs:nodejs /app/migrate
+
 # Ensure public directory has correct permissions for standalone mode
 RUN chmod -R 755 /app/public 2>/dev/null || true && \
-    chmod +x /app/scripts/*.sh 2>/dev/null || true
+    chmod +x /app/scripts/*.sh 2>/dev/null || true && \
+    chmod +x /app/migrate/run.mjs
 
 # Create avatars and storage upload directory and ensure nextjs user can write to it
 RUN mkdir -p /app/public/avatars /app/storage/avatars && chown -R nextjs:nodejs /app/public/avatars /app/storage
@@ -85,9 +94,14 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-# Health check for Coolify
+# Health check for Coolify (uses busybox wget, preferred over node -e)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+    CMD wget -qO- http://localhost:3000/api/health || exit 1
 
-# Start the application
+# Entrypoint runs migrations with an advisory lock, then starts the app.
+# This is safer than Coolify's post-deployment command because the DB is ready
+# before the container is marked healthy, and it works without pnpm in the image.
+ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
+
+# Default command for the entrypoint (overridden by Coolify start command if set)
 CMD ["node", "server.js"]

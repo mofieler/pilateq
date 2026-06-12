@@ -134,9 +134,11 @@ Das Dockerfile im Projektroot (`./Dockerfile`) ist bereits für Coolify und Next
 | Output | Next.js `standalone` (`server.js`) |
 | Port | `3000` |
 | User | `nextjs` (non-root) |
-| Healthcheck | `GET http://localhost:3000/api/health` |
+| Healthcheck | `GET http://localhost:3000/api/health` (mit `wget`, nicht `node -e`) |
 | Memory | `NODE_OPTIONS="--max-old-space-size=4096"` im Builder |
 | Extras | `vips-dev` für Bildverarbeitung, `/app/storage/avatars` als Volume für Uploads |
+| Migrationen | Automatisch beim Container-Start via `docker-entrypoint.sh` + PostgreSQL Advisory Lock |
+| `.dockerignore` | `website/`, `.git`, `.next`, `node_modules`, Tests, etc. ausgeschlossen |
 
 ### Build-Einstellungen in Coolify
 
@@ -145,10 +147,12 @@ Das Dockerfile im Projektroot (`./Dockerfile`) ist bereits für Coolify und Next
 | Base Directory | `/` |
 | Dockerfile Path | `./Dockerfile` |
 | Build Args | (keine — alles über Env-Variablen) |
-| Start Command | (leer lassen, `standalone/server.js` wird vom Dockerfile gestartet) |
+| Start Command | (leer lassen, `ENTRYPOINT` startet Migrationen und dann `server.js`) |
 | Port | `3000` |
 | Healthcheck Path | `/api/health` |
 | Healthcheck Port | `3000` |
+
+> **Wichtig:** Das Dockerfile setzt ein `ENTRYPOINT` (`scripts/docker-entrypoint.sh`). Coolifys eigenes Start-Command wird an diesen Entrypoint übergeben. Lass das Feld **Start Command** in Coolify leer, damit der Entrypoint korrekt arbeitet.
 
 > **Hinweis:** Falls der Build mit 4 GB Heap im Container abstürzt, in Coolify mehr RAM zuweisen oder `NODE_OPTIONS="--max-old-space-size=6144"` bzw. `8192` setzen.
 
@@ -307,21 +311,35 @@ Laut offizieller PostgreSQL-Dokumentation ist **18.4** (Mai 2026) die aktuelle s
 
 > **Wichtig:** Niemals die Dateien in `src/db/migrations/archived/` anwenden!
 
-### 8.1 Für frische Datenbank (empfohlen)
+### Automatische Migrationen beim Container-Start (empfohlen)
 
-Coolify → App → **Pre-deployment Command**:
+pilatesOS verwendet einen Docker-Entrypoint, der bei jedem Container-Start folgendes ausführt:
+
+1. **PostgreSQL Advisory Lock** erwerben (verhindert parallele Migrationen bei mehreren Instanzen)
+2. **Pending Drizzle-Migrationen** anwenden (`drizzle-kit migrate`)
+3. Lock freigeben und App starten (`node server.js`)
+
+Dafür ist kein `pnpm` im laufenden Container nötig. Die Migrationstools (`drizzle-kit`, `drizzle-orm`, `postgres`, `dotenv`) werden während des Builds in einem eigenen Layer `/app/migrate` lokal installiert.
+
+> **Hinweis:** Coolify bietet Pre/Post-deployment Commands, aber der Pre-deployment Command läuft im **alten** Container und sieht neue Migrationsdateien möglicherweise noch nicht. Der Post-deployment Command läuft zwar im neuen Container, aber erst **nach** dem Traffic-Switch. Der Entrypoint-Approach stellt sicher, dass die DB vor dem Healthcheck auf dem neuesten Stand ist.
+
+### Manuelle Migration (Fallback)
+
+Falls du Migrationen manuell im Coolify-Terminal ausführen willst:
 
 ```bash
-pnpm db:migrate
+node /app/migrate/run.mjs
 ```
 
-Alternativ manuell im Coolify-Terminal:
+Oder direkt mit `drizzle-kit` aus dem lokalen Layer:
 
 ```bash
-node_modules/.bin/drizzle-kit migrate
+/app/migrate/node_modules/.bin/drizzle-kit migrate
 ```
 
-Aktiver Migrationssatz (kompatibel mit PostgreSQL 16–18, explizit validiert unter PG 18 empfohlen):
+### Migrationssatz
+
+Aktiver Satz (kompatibel mit PostgreSQL 16–18, empfohlen wird PG 18):
 
 - `0000_initial_schema.sql`
 - `0001_add_audit_logs.sql`
@@ -334,12 +352,12 @@ Aktiver Migrationssatz (kompatibel mit PostgreSQL 16–18, explizit validiert un
 Prüfen:
 
 ```bash
-cat src/db/migrations/meta/_journal.json | grep -E '"tag"|"000[0-9]'
+cat /app/src/db/migrations/meta/_journal.json | grep -E '"tag"|"000[0-9]'
 ```
 
 Es müssen Einträge für `0000` bis `0009` vorhanden sein.
 
-### 8.2 Für bestehende Produktions-DB
+### Für bestehende Produktions-DB
 
 Vor `0008_studio_id_not_null.sql` prüfen:
 
@@ -467,10 +485,12 @@ Die Tenant-Auflösung basiert auf `NEXT_PUBLIC_PLATFORM_DOMAIN`. Wenn ein Benutz
 
 ### Migration schlägt fehl
 
+- Container-Logs prüfen: der Entrypoint zeigt `[migrate] ...` Meldungen vor dem App-Start
 - `_journal.json` prüfen: muss Einträge für `0000`–`0009` haben
 - Nie `archived/` anwenden
 - Bei bestehender DB vor `0008` auf NULL-Werte prüfen
 - PostgreSQL-Version prüfen: pilatesOS läuft mit PG 16–18, empfohlen wird PG 18 — vor dem Upgrade einer bestehenden Prod-DB ein Backup + Staging-Test machen
+- **Wichtig:** `pnpm` und das Projekt-`node_modules` existieren nicht im Runner. Im Terminal daher `node /app/migrate/run.mjs` oder `/app/migrate/node_modules/.bin/drizzle-kit migrate` verwenden.
 
 ### Rate-Limiting blockiert alle
 
