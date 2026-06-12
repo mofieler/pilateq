@@ -117,8 +117,28 @@ curl -fsSL https://cdn.coolify.io/install.sh | bash
 3. GitHub-Quelle wählen → Repository `pilatesOS`
 4. Branch: `main`
 5. Build-Pack: **Dockerfile**
+6. Die Build-Einstellungen (Port, Healthcheck, Dockerfile-Path) sind in Schritt 6 dokumentiert.
 
-### Build-Einstellungen
+---
+
+## 6. Dockerfile sicherstellen
+
+Das Dockerfile im Projektroot (`./Dockerfile`) ist bereits für Coolify und Next.js 16 `standalone` vorkonfiguriert. **Es muss nicht angepasst werden**, nur um PostgreSQL 18 zu nutzen — das Dockerfile hat keine direkte Abhängigkeit zur PostgreSQL-Version.
+
+### Wichtige Eigenschaften des Dockerfiles
+
+| Eigenschaft | Wert / Bemerkung |
+|---|---|
+| Base Image | `node:20-alpine` |
+| Package Manager | pnpm via corepack |
+| Output | Next.js `standalone` (`server.js`) |
+| Port | `3000` |
+| User | `nextjs` (non-root) |
+| Healthcheck | `GET http://localhost:3000/api/health` |
+| Memory | `NODE_OPTIONS="--max-old-space-size=4096"` im Builder |
+| Extras | `vips-dev` für Bildverarbeitung, `/app/storage/avatars` als Volume für Uploads |
+
+### Build-Einstellungen in Coolify
 
 | Feld | Wert |
 |---|---|
@@ -129,50 +149,6 @@ curl -fsSL https://cdn.coolify.io/install.sh | bash
 | Port | `3000` |
 | Healthcheck Path | `/api/health` |
 | Healthcheck Port | `3000` |
-
----
-
-## 6. Dockerfile sicherstellen
-
-Das Multi-Stage-Dockerfile im Projektroot muss in etwa so aussehen:
-
-```dockerfile
-# syntax=docker.io/docker/dockerfile:1
-FROM node:22-alpine AS base
-
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN pnpm build
-
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-USER nextjs
-EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-CMD ["node", "server.js"]
-```
 
 > **Hinweis:** Falls der Build mit 4 GB Heap im Container abstürzt, in Coolify mehr RAM zuweisen oder `NODE_OPTIONS="--max-old-space-size=6144"` bzw. `8192` setzen.
 
