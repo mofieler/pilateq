@@ -134,7 +134,7 @@ Das Dockerfile im Projektroot (`./Dockerfile`) ist bereits für Coolify und Next
 | Output | Next.js `standalone` (`server.js`) |
 | Port | `3000` |
 | User | `nextjs` (non-root) |
-| Healthcheck | `GET http://localhost:3000/api/health` (mit `wget`, nicht `node -e`) |
+| Healthcheck | `GET http://localhost:3000/api/health` (mit `wget`, `start-period=180s` für initiale Migration) |
 | Memory | `NODE_OPTIONS="--max-old-space-size=4096"` im Builder |
 | Extras | `vips-dev` für Bildverarbeitung, `/app/storage/avatars` als Volume für Uploads |
 | Migrationen | Automatisch beim Container-Start via `docker-entrypoint.sh` + PostgreSQL Advisory Lock |

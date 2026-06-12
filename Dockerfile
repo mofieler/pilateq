@@ -94,8 +94,10 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-# Health check for Coolify (uses busybox wget, preferred over node -e)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check for Coolify (uses busybox wget, preferred over node -e).
+# start-period is intentionally generous (180s) so the initial Drizzle
+# migration on a fresh database has enough time before the first probe.
+HEALTHCHECK --interval=10s --timeout=10s --start-period=180s --retries=5 \
     CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 # Entrypoint runs migrations with an advisory lock, then starts the app.
