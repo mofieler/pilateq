@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "PowerShell($response = Invoke-WebRequest -Uri \"https://paquita.pilateq.de/logo.png\" -Method HEAD -UseBasicParsing -ErrorAction SilentlyContinue; Write-Host \"Status: $\\($response.StatusCode\\)\"; Write-Host \"Content-Type: $\\($response.Headers['Content-Type']\\)\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|html|ejs\\)$\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\\\\app\\\\admin\\\\admin\\\\user-credits\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\\\\app\\\\\\(legal\\)\\\\impressum\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\\\\app\\\\\\(legal\\)\\\\datenschutz\")",
+      "Bash(git restore *)",
+      "PowerShell(git -C \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\" diff --stat)",
+      "PowerShell(git -C \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\" add src/lib/email/resend.ts src/lib/invoice/invoice.generator.tsx)",
+      "PowerShell(git -C \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\" push)",
+      "Bash(find /c/Users/morit/MyCode/pilatesOS -type f -name \"*.tsx\" -o -name \"*.ts\" | grep -E \"\\(credits|purchase|dashboard|booking\\)\" | head -20)",
+      "Read(//c/Users/morit/MyCode/pilatesOS/**)",
+      "PowerShell(git -C \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\" add src/app/`\\(dashboard`\\)/credits/page.tsx src/app/`\\(dashboard`\\)/layout.tsx src/app/`\\(dashboard`\\)/page.tsx src/app/`\\(legal`\\)/layout.tsx src/app/`\\(legal`\\)/agb src/app/`\\(legal`\\)/widerrufsrecht src/app/api/credit-purchases/route.ts src/lib/security/error-sanitizer.ts src/middleware.ts src/modules/billing src/modules/booking/actions/createBooking.action.ts)",
+      "PowerShell(git -C \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\" status --short)",
+      "Bash(dir \"C:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\" /b)",
+      "PowerShell(pnpm db:generate)",
+      "PowerShell(pnpm db:migrate)",
+      "PowerShell(node scripts/check-migrations.mjs)",
+      "PowerShell(pnpm add googleapis)",
+      "PowerShell(node -e \"const pkg = require\\('./package.json'\\); console.log\\('bullmq:', pkg.dependencies.bullmq || pkg.devDependencies?.bullmq || 'NOT INSTALLED'\\); console.log\\('ioredis:', pkg.dependencies.ioredis || pkg.devDependencies?.ioredis || 'NOT INSTALLED'\\);\")",
+      "PowerShell(pnpm lint 2>&1)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\\\\db\\\\schema\" -Filter \"*calendar*\" -ErrorAction SilentlyContinue)",
+      "Bash(pnpm db:generate)",
+      "Bash(npm run *)",
+      "Bash(Find . -type f -name \"*.tsx\" -o -name \"*.ts\")",
+      "PowerShell(Test-Path \"c:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\\\\lib\\\\email\\\\templates\"; \\(Get-Item \"c:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\\\\lib\\\\email\\\\templates\"\\).PSIsContainer)",
+      "PowerShell(\\(Get-Item \"c:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\\\\src\\\\lib\\\\email\\\\templates\"\\).GetFiles\\(\\) | Select-Object Name)",
+      "Bash(npx tsc *)",
+      "Bash(grep -v \"//.*cookie\")",
+      "PowerShell(cd \"c:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\"; git add src/app/admin/statistics/ src/modules/statistics/ src/components/shared/PasswordStrengthMeter.tsx src/app/admin/components/AdminNav.tsx src/app/\\(auth\\)/register/page.tsx src/app/\\(auth\\)/reset-password/page.tsx src/modules/users/actions/register.action.ts src/modules/users/actions/reset-password.action.ts)",
+      "PowerShell(cd \"c:\\\\Users\\\\morit\\\\MyCode\\\\pilatesOS\"; git add src/lib/config/class-types.test.ts src/lib/config/class-types.ts src/modules/users/components/CreditBalanceDisplay.tsx src/modules/users/components/UpcomingBookingsList.tsx src/modules/users/components/CancelBookingButton.tsx src/modules/booking/components/ClassSessionCard.tsx src/modules/booking/components/WeekView.tsx src/modules/booking/components/BookingConfirmModal.tsx src/modules/booking/components/CancellationPolicyBanner.tsx src/app/\\(dashboard\\)/page.tsx src/modules/billing/actions/adminCredits.actions.ts src/modules/billing/actions/creditPackage.actions.ts src/modules/billing/components/CreditPackagesManager.tsx src/modules/classes/components/AdminWeekView.tsx src/lib/email/resend.ts; git status --short)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Read(//c/Users/morit/Documents/harmony-pilates/**)",
+      "Bash(cp \"C:/Users/morit/MyCode/harmony-pilates/src/services/CookieConsentService.js\" \"C:/Users/morit/Documents/harmony-pilates/src/services/CookieConsentService.js\" && echo \"OK\")",
+      "WebFetch(domain:www.paquitapilatesreformer.de)",
+      "WebFetch(domain:paquitapilatesreformer.com)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\morit\\MyCode\\harmony-pilates\\src\\services"
+    ]
+  }
+}

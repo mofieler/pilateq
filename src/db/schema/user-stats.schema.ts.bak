@@ -1,0 +1,59 @@
+import {
+  pgTable,
+  uuid,
+  integer,
+  timestamp,
+  index,
+  check,
+} from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { users } from './users.schema';
+import { studios } from './studios.schema';
+
+/**
+ * user_stats — Gamification &aggregierte Nutzerstatistiken.
+ *
+ * Ausgelagert von `users`, um Write-Contention auf der users-Tabelle
+ * bei parallelen Buchungen/Streak-Updates zu vermeiden.
+ *
+ * Ein DB-Trigger synchronisiert die Werte zurück zu `users`,
+ * damit existierender Code weiterhin funktioniert.
+ */
+export const userStats = pgTable(
+  'user_stats',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    studioId: uuid('studio_id')
+      .notNull()
+      .references(() => studios.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    // Gamification counters
+    totalClassesAttended: integer('total_classes_attended').notNull().default(0),
+    currentStreak: integer('current_streak').notNull().default(0),
+    longestStreak: integer('longest_streak').notNull().default(0),
+    streakLastUpdatedAt: timestamp('streak_last_updated_at', { withTimezone: true, mode: 'date' }),
+
+    // Optimistic locking — jeder Update inkrementiert version.
+    // Die App prüft: WHERE id = ? AND version = expected
+    version: integer('version').notNull().default(0),
+
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    studioIdIdx: index('user_stats_studio_id_idx').on(table.studioId),
+    userIdIdx: index('user_stats_user_id_idx').on(table.userId),
+    streakIdx: index('user_stats_streak_idx').on(table.currentStreak),
+    versionNonNeg: check('user_stats_version_nonneg', sql`${table.version} >= 0`),
+    totalClassesNonNeg: check('user_stats_total_classes_nonneg', sql`${table.totalClassesAttended} >= 0`),
+    currentStreakNonNeg: check('user_stats_current_streak_nonneg', sql`${table.currentStreak} >= 0`),
+    longestStreakNonNeg: check('user_stats_longest_streak_nonneg', sql`${table.longestStreak} >= 0`),
+  }),
+);

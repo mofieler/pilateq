@@ -1,0 +1,1 @@
+﻿// booking module types

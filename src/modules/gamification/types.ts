@@ -1,0 +1,1 @@
+﻿// gamification module types

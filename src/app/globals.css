@@ -1,0 +1,285 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-outfit);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-outfit);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* Warm Boutique Palette - Cream, Beige, Espresso */
+  --background: #faf9f7;
+  --foreground: #4e2b22;
+  --card: rgba(237, 232, 229, 0.72);
+  --card-foreground: #4e2b22;
+  --popover: rgba(250, 249, 247, 0.95);
+  --popover-foreground: #4e2b22;
+  --primary: #4e2b22;
+  --primary-foreground: #faf9f7;
+  --secondary: #ede8e5;
+  --secondary-foreground: #4e2b22;
+  --muted: #f5f3f1;
+  --muted-foreground: #8b6b5c;
+  --accent: #c4a88a;
+  --accent-foreground: #4e2b22;
+  --destructive: #c45c4a;
+  --border: rgba(196, 168, 138, 0.3);
+  --input: rgba(196, 168, 138, 0.2);
+  --ring: #4e2b22;
+  --radius: 1rem;
+  
+  /* Extended color palette */
+  --color-cream: #ede8e5;
+  --color-warm-white: #faf9f7;
+  --color-espresso: #4e2b22;
+  --color-caramel: #8b5a3c;
+  --color-latte: #c4a88a;
+  --color-success: #6b8e6b;
+  --color-warning: #d4a574;
+
+  /* Warm boutique tokens (conflict-safe — shadcn uses --border) */
+  --espresso: #4e2b22;
+  --cream: #faf9f7;
+  --latte: #c4a88a;
+  --danger: #c45c4a;
+  --success: #6b8e6b;
+  --warning: #d4a574;
+  --warm-border: #ede8e5;
+  
+  /* Text contrast colors */
+  --text-primary: #4e2b22;
+  --text-secondary: #6b3d32;
+  --text-muted: #8b6b5c;
+  --text-subtle: #a6856f;
+  --text-inverse: #faf9f7;
+  --text-success: #4a7c4a;
+  --text-warning: #b58a5c;
+  --text-error: #b54a38;
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(250, 249, 247, 0.72);
+  --glass-border: rgba(237, 232, 229, 0.5);
+  --glass-shadow: 0 8px 32px rgba(78, 43, 34, 0.08);
+  --glass-blur: blur(20px) saturate(180%);
+  
+  /* Chart colors (warm palette) */
+  --chart-1: #4e2b22;
+  --chart-2: #8b5a3c;
+  --chart-3: #c4a88a;
+  --chart-4: #6b8e6b;
+  --chart-5: #d4a574;
+  
+  /* Sidebar */
+  --sidebar: rgba(237, 232, 229, 0.8);
+  --sidebar-foreground: #4e2b22;
+  --sidebar-primary: #4e2b22;
+  --sidebar-primary-foreground: #faf9f7;
+  --sidebar-accent: rgba(196, 168, 138, 0.3);
+  --sidebar-accent-foreground: #4e2b22;
+  --sidebar-border: rgba(196, 168, 138, 0.3);
+  --sidebar-ring: #4e2b22;
+}
+
+.dark {
+  --background: #2a2420;
+  --foreground: #faf9f7;
+  --card: rgba(60, 50, 45, 0.72);
+  --card-foreground: #faf9f7;
+  --popover: rgba(45, 38, 34, 0.95);
+  --popover-foreground: #faf9f7;
+  --primary: #ede8e5;
+  --primary-foreground: #4e2b22;
+  --secondary: #3d332c;
+  --secondary-foreground: #faf9f7;
+  --muted: #3d332c;
+  --muted-foreground: #c4a88a;
+  --accent: #8b5a3c;
+  --accent-foreground: #faf9f7;
+  --destructive: #c45c4a;
+  --border: rgba(196, 168, 138, 0.15);
+  --input: rgba(196, 168, 138, 0.1);
+  --ring: #ede8e5;
+  
+  --glass-bg: rgba(60, 50, 45, 0.72);
+  --glass-border: rgba(196, 168, 138, 0.15);
+  
+  --sidebar: rgba(60, 50, 45, 0.8);
+  --sidebar-foreground: #faf9f7;
+  --sidebar-primary: #ede8e5;
+  --sidebar-primary-foreground: #4e2b22;
+  --sidebar-accent: rgba(196, 168, 138, 0.15);
+  --sidebar-accent-foreground: #faf9f7;
+  --sidebar-border: rgba(196, 168, 138, 0.15);
+  --sidebar-ring: #ede8e5;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background: linear-gradient(180deg, #faf9f7 0%, #f5f3f1 100%);
+    min-height: 100vh;
+    font-family: var(--font-outfit), system-ui, sans-serif;
+  }
+  html {
+    @apply font-sans;
+  }
+  
+  /* Heading hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-primary font-semibold;
+  }
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-2xl font-bold; }
+  h3 { @apply text-xl font-semibold; }
+  h4 { @apply text-lg font-semibold; }
+  h5 { @apply text-base font-semibold; }
+  h6 { @apply text-sm font-semibold; }
+  
+  /* Body text */
+  p {
+    @apply text-primary;
+  }
+  
+  /* Labels and captions */
+  label {
+    @apply text-secondary font-medium;
+  }
+  .caption {
+    @apply text-muted text-xs;
+  }
+  .subtitle {
+    @apply text-secondary text-sm;
+  }
+  
+  /* Links */
+  a {
+    @apply text-secondary hover:text-primary transition-colors;
+  }
+  
+  /* Input text */
+  input, textarea, select {
+    @apply text-primary placeholder:text-muted;
+  }
+}
+
+/* Glassmorphism Card Styles */
+@layer utilities {
+  /* Override Tailwind's color-based text utilities with our semantic text colors.
+     Must be in @layer utilities (not base) so they win the cascade. */
+  .text-primary { color: var(--text-primary) !important; }
+  .text-secondary { color: var(--text-secondary) !important; }
+  .text-muted { color: var(--text-muted) !important; }
+  .text-subtle { color: var(--text-subtle) !important; }
+  .text-inverse { color: var(--text-inverse) !important; }
+  .text-success { color: var(--text-success) !important; }
+  .text-warning { color: var(--text-warning) !important; }
+  .text-error { color: var(--text-error) !important; }
+
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: 
+      0 4px 6px rgba(78, 43, 34, 0.02),
+      0 10px 20px rgba(78, 43, 34, 0.04),
+      0 20px 40px rgba(78, 43, 34, 0.06);
+    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 8px 12px rgba(78, 43, 34, 0.03),
+      0 16px 32px rgba(78, 43, 34, 0.05),
+      0 32px 64px rgba(78, 43, 34, 0.08);
+  }
+  
+  .glass-subtle {
+    background: rgba(250, 249, 247, 0.5);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid rgba(237, 232, 229, 0.4);
+  }
+  
+  .btn-boutique {
+    background: linear-gradient(135deg, #4e2b22 0%, #6b3d32 100%);
+    color: #faf9f7;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(78, 43, 34, 0.25);
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .btn-boutique:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(78, 43, 34, 0.35);
+  }
+  
+  .btn-boutique:active {
+    transform: scale(0.98);
+  }
+  
+  .text-gradient-warm {
+    background: linear-gradient(135deg, #4e2b22 0%, #8b5a3c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Background-safe text colors */
+  .text-on-cream { color: #4e2b22; }
+  .text-on-espresso { color: #faf9f7; }
+  .text-on-latte { color: #4e2b22; }
+  .text-on-success { color: #faf9f7; }
+  .text-on-warning { color: #4e2b22; }
+  .text-on-error { color: #faf9f7; }
+}

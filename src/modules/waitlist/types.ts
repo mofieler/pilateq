@@ -1,0 +1,1 @@
+﻿// waitlist module types
