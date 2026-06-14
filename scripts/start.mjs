@@ -11,11 +11,20 @@
  * migrations before this script is invoked.
  */
 import { spawn } from 'child_process';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATE_SCRIPT = path.resolve(__dirname, 'migrate-with-lock.mjs');
+// In the Docker image the migration dependencies are installed in
+// /app/migrate/node_modules, so we must run the copy there, not the one in
+// /app/scripts which cannot resolve dotenv/drizzle-orm/postgres. Locally the
+// /app/migrate directory does not exist, so fall back to the script in scripts/.
+const CONTAINER_MIGRATE_SCRIPT = path.resolve(__dirname, '..', 'migrate', 'run.mjs');
+const LOCAL_MIGRATE_SCRIPT = path.resolve(__dirname, 'migrate-with-lock.mjs');
+const MIGRATE_SCRIPT = fs.existsSync(CONTAINER_MIGRATE_SCRIPT)
+  ? CONTAINER_MIGRATE_SCRIPT
+  : LOCAL_MIGRATE_SCRIPT;
 const SERVER_SCRIPT = path.resolve(__dirname, '..', 'server.js');
 
 function log(message) {
@@ -24,7 +33,7 @@ function log(message) {
 
 async function runMigrations() {
   return new Promise((resolve, reject) => {
-    log('Running migrations...');
+    log(`Running migrations using ${MIGRATE_SCRIPT}...`);
     const child = spawn('node', [MIGRATE_SCRIPT], {
       stdio: 'inherit',
       env: process.env,
