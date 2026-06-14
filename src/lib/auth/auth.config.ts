@@ -17,6 +17,19 @@ const logger = getLogger('auth');
 
 import { headers } from 'next/headers';
 
+// Auth.js uses secure cookies in production by default. Self-hosted deployments
+// often run on HTTP (e.g. Coolify sslip.io domains), so we derive the secure
+// flag from NEXTAUTH_URL unless AUTH_COOKIE_SECURE is explicitly set.
+const useSecureCookies =
+  process.env.AUTH_COOKIE_SECURE === 'true' ||
+  (process.env.AUTH_COOKIE_SECURE !== 'false' &&
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXTAUTH_URL?.startsWith('https://') === true);
+
+// Trust the host by default in production; most self-hosted/reverse-proxy
+// setups need this. Set AUTH_TRUST_HOST=false to disable.
+const trustHost = process.env.AUTH_TRUST_HOST !== 'false';
+
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
   'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'protonmail.com',
 ]);
@@ -88,7 +101,7 @@ export const authConfig: NextAuthConfig = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: useSecureCookies,
         domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
       },
     },
@@ -98,7 +111,7 @@ export const authConfig: NextAuthConfig = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: useSecureCookies,
         domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
       },
     },
@@ -109,7 +122,7 @@ export const authConfig: NextAuthConfig = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: useSecureCookies,
       },
     },
     pkceCodeVerifier: {
@@ -118,7 +131,7 @@ export const authConfig: NextAuthConfig = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: useSecureCookies,
         domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
       },
     },
@@ -128,7 +141,7 @@ export const authConfig: NextAuthConfig = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: useSecureCookies,
         domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
       },
     },
@@ -375,7 +388,5 @@ export const authConfig: NextAuthConfig = {
     },
   },
 
-  trustHost: process.env.NODE_ENV === 'production'
-    ? process.env.AUTH_TRUST_HOST === 'true'
-    : true,
+  trustHost,
 };

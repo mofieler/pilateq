@@ -29,13 +29,16 @@ export async function verifyTurnstileToken(
   remoteIp?: string,
 ): Promise<TurnstileResult> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
+  // Explicit opt-out for environments that don't want captcha (e.g. internal
+  // demos or self-hosted single-tenant deployments).
+  if (process.env.DISABLE_TURNSTILE === 'true') {
+    return { success: true };
+  }
+
   if (!secret) {
-    // Dev / un-provisioned: skip verification so local development works
-    // without keys. Production MUST fail closed.
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[turnstile] TURNSTILE_SECRET_KEY not set — rejecting request');
-      return { success: false, error: 'Captcha verification is not configured.' };
-    }
+    // Dev / un-provisioned: skip verification so local development and fresh
+    // self-hosted deployments work without keys. If a key is configured we
+    // verify; if not, the widget is also hidden client-side.
     return { success: true };
   }
 

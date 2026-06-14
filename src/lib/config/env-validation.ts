@@ -15,6 +15,8 @@ const envSchema = z.object({
   
   // Security
   ALLOWED_ORIGINS: z.string().optional(),
+  AUTH_COOKIE_SECURE: z.string().optional(),
+  DISABLE_TURNSTILE: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   
   // Application
