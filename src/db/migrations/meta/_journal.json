@@ -50,6 +50,20 @@
       "when": 1781778234150,
       "tag": "0009_credit_expires_at",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781778234151,
+      "tag": "0010_credit_purchases_idempotency_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781778234152,
+      "tag": "0011_add_waiver_columns",
+      "breakpoints": true
     }
   ]
 }
