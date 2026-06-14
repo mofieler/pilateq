@@ -99,10 +99,10 @@ EXPOSE 3000
 # Health check for Coolify. Uses a tiny Node.js script so the probe is
 # independent of busybox wget and works reliably under the non-root nextjs
 # user on Alpine.
-# start-period is generous (600s) because the entrypoint runs Drizzle migrations
-# before the Next.js server starts; on a small VPS with a fresh DB this can
-# take several minutes.
-HEALTHCHECK --interval=10s --timeout=10s --start-period=600s --retries=5 \
+# start-period gives the container time to run migrations and start the
+# Next.js server. With the schema already in place this is now fast, so we
+# keep the grace period short (60s) to avoid long deployment waits.
+HEALTHCHECK --interval=10s --timeout=10s --start-period=60s --retries=5 \
     CMD node /app/scripts/healthcheck.mjs
 
 # Entrypoint runs migrations with an advisory lock, then starts the app.
