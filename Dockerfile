@@ -110,5 +110,7 @@ HEALTHCHECK --interval=10s --timeout=10s --start-period=600s --retries=5 \
 # before the container is marked healthy, and it works without pnpm in the image.
 ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
 
-# Default command for the entrypoint (overridden by Coolify start command if set)
-CMD ["node", "server.js"]
+# Default command for the entrypoint (overridden by Coolify start command if set).
+# We run migrations here as well as in the entrypoint so the container still
+# applies schema changes if a deployment platform replaces the entrypoint.
+CMD ["node", "/app/scripts/start.mjs"]
