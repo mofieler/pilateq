@@ -38,6 +38,11 @@ const PUBLIC_PREFIXES = [
 ];
 const PUBLIC_EXACT = ['/'];
 
+// Match the auth cookie logic: only use secure cookies when NEXTAUTH_URL is HTTPS.
+const useSecureCookies =
+  process.env.NODE_ENV === 'production' &&
+  process.env.NEXTAUTH_URL?.startsWith('https://') === true;
+
 /**
  * Detect preferred locale from Accept-Language header.
  * Returns the first supported locale, or null.
@@ -93,7 +98,7 @@ export async function middleware(request: NextRequest) {
         path: '/',
         maxAge: 60 * 60 * 24 * 400, // ~400 days
         sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        secure: useSecureCookies,
       });
     }
     return response;
@@ -135,7 +140,7 @@ export async function middleware(request: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 400,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: useSecureCookies,
     });
   }
   return response;
