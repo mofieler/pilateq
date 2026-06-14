@@ -5,7 +5,7 @@ import { signIn } from '@/lib/auth/auth';
 import { AuthError } from 'next-auth';
 import { headers } from 'next/headers';
 import { db } from '@/db';
-import { users } from '@/db/schema';
+import { users, studios } from '@/db/schema';
 import { and, eq, isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { resolveClientIP } from '@/lib/security/client-ip';
@@ -46,15 +46,19 @@ export async function loginAction(input: unknown) {
       };
     }
 
-    // 2. Retrieve user
+    // 2. Retrieve user with linked studio status for post-login routing
     const user = await db
-      .select()
+      .select({
+        user: users,
+        studioStatus: studios.status,
+      })
       .from(users)
+      .leftJoin(studios, eq(studios.id, users.studioId))
       .where(and(eq(users.email, email), isNull(users.deletedAt)))
       .limit(1)
       .then((rows) => rows[0]);
 
-    if (!user || !user.passwordHash) {
+    if (!user || !user.user.passwordHash) {
       await recordAuthFailure(ip, email);
       const attempts = await getAuthAttempts(ip, email);
       return {
@@ -66,7 +70,7 @@ export async function loginAction(input: unknown) {
     }
 
     // 3. Check email verification
-    if (!user.emailVerified) {
+    if (!user.user.emailVerified) {
       await recordAuthFailure(ip, email);
       const attempts = await getAuthAttempts(ip, email);
       return {
@@ -78,7 +82,7 @@ export async function loginAction(input: unknown) {
     }
 
     // 4. Compare password
-    const isPasswordValid = await bcrypt.compare(validated.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(validated.password, user.user.passwordHash);
     if (!isPasswordValid) {
       await recordAuthFailure(ip, email);
       const attempts = await getAuthAttempts(ip, email);
@@ -102,7 +106,9 @@ export async function loginAction(input: unknown) {
 
     return {
       success: true as const,
-      role: user.role,
+      role: user.user.role,
+      onboardingCompletedAt: user.user.onboardingCompletedAt?.toISOString() ?? null,
+      studioStatus: user.studioStatus ?? 'unknown',
     };
   } catch (error) {
     if (

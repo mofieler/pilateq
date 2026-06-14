@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition, useMemo, useCallback } from 'react';
 import { OnboardingStepper } from './OnboardingStepper';
+import { WelcomeStep } from './steps/WelcomeStep';
 import { IdentityStep } from './steps/IdentityStep';
 import { BrandingStep } from './steps/BrandingStep';
 import { BusinessModelStep } from './steps/BusinessModelStep';
@@ -29,6 +30,7 @@ import { businessModelEnum } from '@/lib/studio/studio.config.schema';
 import { z } from 'zod';
 
 const STEPS = [
+  { key: 'welcome', label: 'Welcome', isIntro: true },
   { key: 'identity', label: 'Studio Identity' },
   { key: 'branding', label: 'Branding' },
   { key: 'businessModel', label: 'Business Model' },
@@ -40,7 +42,7 @@ const STEPS = [
 type StepKey = (typeof STEPS)[number]['key'];
 
 const STEP_TO_SAVE_KEY: Record<
-  Exclude<StepKey, 'review'>,
+  Exclude<StepKey, 'welcome' | 'review'>,
   keyof OnboardingStepInput
 > = {
   identity: 'identity',
@@ -109,6 +111,7 @@ export function OnboardingWizard() {
   const [error, setError] = useState('');
   const [seedDefaults, setSeedDefaults] = useState(true);
   const [touched, setTouched] = useState<Record<StepKey, boolean>>({
+    welcome: false,
     identity: false,
     branding: false,
     businessModel: false,
@@ -121,6 +124,9 @@ export function OnboardingWizard() {
     loadOnboardingStateAction().then((res) => {
       if (res.success) {
         setConfig(res.config);
+        const savedStep = res.onboardingStep ?? res.config.onboardingState.currentStep ?? 'welcome';
+        const stepIndex = STEPS.findIndex((s) => s.key === savedStep);
+        setCurrentStep(Math.max(0, stepIndex));
       }
       setLoading(false);
     });
@@ -161,8 +167,15 @@ export function OnboardingWizard() {
     markStepTouched();
     if (hasStepErrors) return;
 
-    const stepKey = STEPS[currentStep].key as Exclude<StepKey, 'review'>;
-    const saveKey = STEP_TO_SAVE_KEY[stepKey];
+    const stepKey = STEPS[currentStep].key;
+
+    // Welcome is an intro step — just advance without saving.
+    if (stepKey === 'welcome') {
+      setCurrentStep((s: number) => s + 1);
+      return;
+    }
+
+    const saveKey = STEP_TO_SAVE_KEY[stepKey as Exclude<StepKey, 'welcome' | 'review'>];
     const stepData = config[saveKey];
     setError('');
     startSaving(async () => {
@@ -231,7 +244,8 @@ export function OnboardingWizard() {
             {error}
           </div>
         )}
-        {currentStep === 0 && (
+        {currentStep === 0 && <WelcomeStep />}
+        {currentStep === 1 && (
           <IdentityStep
             value={config.identity}
             onChange={(v) => updateConfig('identity', v)}
@@ -240,7 +254,7 @@ export function OnboardingWizard() {
             platformDomain={process.env.NEXT_PUBLIC_PLATFORM_DOMAIN}
           />
         )}
-        {currentStep === 1 && (
+        {currentStep === 2 && (
           <BrandingStep
             value={config.branding}
             onChange={(v) => updateConfig('branding', v)}
@@ -248,28 +262,28 @@ export function OnboardingWizard() {
             errors={showErrors ? stepErrors : {}}
           />
         )}
-        {currentStep === 2 && (
+        {currentStep === 3 && (
           <BusinessModelStep
             value={config.enabledBusinessModels}
             onChange={(v) => updateConfig('enabledBusinessModels', v)}
             errors={showErrors ? stepErrors : {}}
           />
         )}
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <PaymentsStep
             value={config.paymentProviders}
             onChange={(v) => updateConfig('paymentProviders', v)}
             errors={showErrors ? stepErrors : {}}
           />
         )}
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <ClassCatalogStep
             value={config.classTypes}
             onChange={(v) => updateConfig('classTypes', v)}
             errors={showErrors ? stepErrors : {}}
           />
         )}
-        {currentStep === 5 && <ReviewStep config={config} />}
+        {currentStep === 6 && <ReviewStep config={config} />}
         {currentStep === 5 && (
           <div className="mt-6 flex items-start gap-3 rounded-xl border border-[#ede8e5] bg-[#faf9f7]/60 p-4">
             <Checkbox
@@ -297,7 +311,15 @@ export function OnboardingWizard() {
           >
             Back
           </Button>
-          {currentStep < STEPS.length - 1 ? (
+          {currentStep === 0 ? (
+            <Button
+              onClick={handleNext}
+              disabled={saving}
+              className="rounded-xl bg-[#4e2b22] text-white hover:bg-[#3a1f18]"
+            >
+              {saving ? <Loader2 className="size-4 animate-spin" /> : 'Get started'}
+            </Button>
+          ) : currentStep < STEPS.length - 1 ? (
             <Button
               onClick={handleNext}
               disabled={saving || (showErrors && hasStepErrors)}

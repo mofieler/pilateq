@@ -137,10 +137,18 @@ export async function saveOnboardingStepAction(
   // Validate before saving.
   const validated = parseStudioConfig(mergedConfig);
 
-  await db
-    .update(studioSettings)
-    .set({ configJson: validated as unknown as Record<string, unknown> })
-    .where(eq(studioSettings.studioId, studioId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(studioSettings)
+      .set({ configJson: validated as unknown as Record<string, unknown> })
+      .where(eq(studioSettings.studioId, studioId));
+
+    // Persist the user's progress so they can resume onboarding after a logout.
+    await tx
+      .update(users)
+      .set({ onboardingStep: step })
+      .where(eq(users.id, userId));
+  });
 
   revalidatePath('/onboarding');
   revalidatePath('/');
@@ -152,7 +160,10 @@ export async function saveOnboardingStepAction(
  * Returns the studio config if the user is already attached to a studio,
  * otherwise falls back to the default config.
  */
-export async function loadOnboardingStateAction(): Promise<{ success: true; config: StudioConfig; studioId?: string } | { success: false; error: string }> {
+export async function loadOnboardingStateAction(): Promise<
+  | { success: true; config: StudioConfig; studioId?: string; onboardingStep?: string }
+  | { success: false; error: string }
+> {
   try {
     const { userId } = await requireOnboardingUser();
 
@@ -165,14 +176,16 @@ export async function loadOnboardingStateAction(): Promise<{ success: true; conf
         .limit(1);
 
       const configJson = (settingsRow?.configJson as Record<string, unknown>) ?? {};
+      const config = parseStudioConfig(configJson);
       return {
         success: true,
-        config: parseStudioConfig(configJson),
+        config,
         studioId: user.studioId,
+        onboardingStep: user.onboardingStep ?? config.onboardingState.currentStep ?? 'welcome',
       };
     }
 
-    return { success: true, config: DEFAULT_STUDIO_CONFIG };
+    return { success: true, config: DEFAULT_STUDIO_CONFIG, onboardingStep: 'welcome' };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to load onboarding state' };
   }
@@ -211,7 +224,12 @@ export async function completeOnboardingAction(slug: string, seedDefaults = fals
 
     await tx
       .update(users)
-      .set({ studioId: studio.id, role: 'admin' })
+      .set({
+        studioId: studio.id,
+        role: 'admin',
+        onboardingStep: 'review',
+        onboardingCompletedAt: new Date(),
+      })
       .where(eq(users.id, userId));
 
     if (seedDefaults) {
@@ -319,7 +337,13 @@ export async function completeOnboardingAction(slug: string, seedDefaults = fals
   // without requiring a fresh sign-in.
   try {
     if (typeof unstable_update === 'function') {
-      await unstable_update({ user: { role: 'admin' } });
+      await unstable_update({
+        user: {
+          role: 'admin',
+          onboardingCompletedAt: new Date().toISOString(),
+          studioStatus: 'active',
+        },
+      } as any);
     } else {
       return { success: true, reauthRequired: true };
     }

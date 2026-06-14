@@ -11,7 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { loginAction } from '@/modules/users/actions/login.action';
 
-function roleRedirect(role: string | undefined | null): string {
+function roleRedirect(
+  role: string | undefined | null,
+  onboardingCompletedAt: string | null | undefined,
+  studioStatus: string | null | undefined
+): string {
+  const onboardingComplete = !!onboardingCompletedAt && studioStatus !== 'onboarding';
+  if (!onboardingComplete) return '/onboarding';
   if (role === 'admin' || role === 'instructor') return '/admin';
   return '/';
 }
@@ -81,7 +87,7 @@ function LoginForm() {
       const result = await loginAction({ email, password });
 
       if (result.success) {
-        router.push(roleRedirect(result.role));
+        router.push(roleRedirect(result.role, result.onboardingCompletedAt, result.studioStatus));
         router.refresh();
         return;
       }

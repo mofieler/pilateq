@@ -34,8 +34,28 @@ const PUBLIC_PREFIXES = [
   '/embed',
   '/onboarding',
   '/start',
+  '/api/auth',
   '/api/webhooks',
 ];
+
+const ONBOARDING_REQUIRED_PREFIXES = [
+  '/login',
+  '/register',
+  '/verify-email',
+  '/complete-profile',
+  '/forgot-password',
+  '/reset-password',
+  '/email-verified',
+  '/verification-failed',
+  '/onboarding',
+  '/start',
+  '/api',
+];
+
+function isOnboardingPublicPath(pathname: string): boolean {
+  if (pathname === '/') return true;
+  return ONBOARDING_REQUIRED_PREFIXES.some((p) => pathname.startsWith(p));
+}
 const PUBLIC_EXACT = ['/'];
 
 // Match the auth cookie logic: only use secure cookies when NEXTAUTH_URL is HTTPS.
@@ -109,6 +129,22 @@ export async function middleware(request: NextRequest) {
   if (!session?.user) {
     const loginUrl = new URL('/login', request.url);
     return addSecurityHeaders(request, NextResponse.redirect(loginUrl), nonce);
+  }
+
+  // Onboarding gate: authenticated users with an incomplete studio onboarding
+  // must finish the onboarding wizard before accessing the app.
+  const user = session.user as {
+    studioId?: string;
+    onboardingCompletedAt?: string | null;
+    studioStatus?: string;
+  };
+  if (user.studioId && !isOnboardingPublicPath(pathname)) {
+    const onboardingCompleted = !!user.onboardingCompletedAt;
+    const studioStillOnboarding = user.studioStatus === 'onboarding';
+    if (!onboardingCompleted || studioStillOnboarding) {
+      const onboardingUrl = new URL('/onboarding', request.url);
+      return addSecurityHeaders(request, NextResponse.redirect(onboardingUrl), nonce);
+    }
   }
 
   // /admin/* requires admin or instructor role

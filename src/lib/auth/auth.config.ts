@@ -336,19 +336,27 @@ export const authConfig: NextAuthConfig = {
       // First sign-in: persist user data into the JWT
       if (user) {
         token.id = user.id;
-        
-        // Fetch latest user details from DB to sync custom avatarUrl
+
+        // Fetch latest user details from DB to sync custom avatarUrl and
+        // onboarding state. Also pull the linked studio status so middleware can
+        // decide whether the user still needs to complete onboarding.
         const dbUser = await db
-          .select()
+          .select({
+            user: users,
+            studioStatus: studios.status,
+          })
           .from(users)
+          .leftJoin(studios, eq(studios.id, users.studioId))
           .where(eq(users.id, user.id!))
           .limit(1)
           .then((rows) => rows[0]);
 
-        token.role = dbUser?.role ?? (user as any).role ?? 'student';
-        token.studioId = dbUser?.studioId ?? (user as any).studioId;
-        token.needsProfileCompletion = dbUser ? !dbUser.profileCompleted : ((user as any).needsProfileCompletion ?? false);
-        token.image = dbUser?.avatarUrl || dbUser?.image || user.image || undefined;
+        token.role = dbUser?.user.role ?? (user as any).role ?? 'student';
+        token.studioId = dbUser?.user.studioId ?? (user as any).studioId;
+        token.needsProfileCompletion = dbUser ? !dbUser.user.profileCompleted : ((user as any).needsProfileCompletion ?? false);
+        token.image = dbUser?.user.avatarUrl || dbUser?.user.image || user.image || undefined;
+        token.onboardingCompletedAt = dbUser?.user.onboardingCompletedAt?.toISOString() ?? null;
+        token.studioStatus = dbUser?.studioStatus ?? 'unknown';
       }
 
       // Session update triggered by unstable_update() after profile completion
@@ -365,6 +373,10 @@ export const authConfig: NextAuthConfig = {
       if (trigger === 'update' && session?.role) {
         token.role = session.role as string;
       }
+      if (trigger === 'update' && session?.onboardingCompletedAt) {
+        token.onboardingCompletedAt = session.onboardingCompletedAt as string;
+        token.studioStatus = (session.studioStatus as string) ?? token.studioStatus ?? 'active';
+      }
 
       return token;
     },
@@ -376,6 +388,8 @@ export const authConfig: NextAuthConfig = {
         session.user.studioId = token.studioId as string | undefined;
         session.user.image = token.image as string | undefined;
         (session.user as any).needsProfileCompletion = token.needsProfileCompletion as boolean;
+        (session.user as any).onboardingCompletedAt = token.onboardingCompletedAt as string | null | undefined;
+        (session.user as any).studioStatus = token.studioStatus as string | undefined;
       }
       return session;
     },
