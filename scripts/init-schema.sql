@@ -77,6 +77,9 @@ CREATE TABLE "users" (
 	"longest_streak" integer DEFAULT 0 NOT NULL,
 	"streak_last_updated_at" timestamp with time zone,
 	"welcome_completed_at" timestamp with time zone,
+	"has_signed_waiver" boolean DEFAULT false NOT NULL,
+	"waiver_signed_at" timestamp with time zone,
+	"waiver_version" varchar(50),
 	"deleted_at" timestamp with time zone,
 	"version" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -785,12 +788,13 @@ CREATE TABLE IF NOT EXISTS "drizzle"."__drizzle_migrations" (
 -- Hashes are SHA-256 of the corresponding .sql migration file contents.
 -- created_at values match the "when" field in meta/_journal.json.
 INSERT INTO "drizzle"."__drizzle_migrations" ("hash", "created_at") VALUES
-    ('5f901162c52210f2e8d52e6530ae8cb9a6b8a92d79102957d15c0da0321def0f', 1780419807312),
+    ('b527f1b5524c9998e688b4f5633846e789e8e7df0524678f5381ed86212fbb04', 1780419807312),
     ('30a4a90f374288ee638558fde65d583f727b22337a3de8f5ef935a5eb6a83c9f', 1780651626151),
     ('8f673f90120b2498dc2cc109e0198bbc64ef308c86de87cc51abd06d25d74319', 1780655341360),
     ('002d72a4c4029be76fd7a62d3220628f47b02c03a31254d15da0c49ca664420c', 1781073308454),
     ('07320938506a65ee843fc47f1e2b1c574a6bc15738522e77662b1794daecde81', 1781244612800),
     ('ee9c47b13eb45fd061d9b03bfecdf271daebab7e46dddab9c6cd4f70c074d3ad', 1781778234148),
     ('a728653f67ff7d0580579949d930c3843d5f424026b7cd78f00669318391871b', 1781778234150),
-    ('e46f4fdb50bcf5564fb5c3943d530b0cc62d181a878cc0ebe49f3a5f2b175d9d', 1781778234151)
+    ('e46f4fdb50bcf5564fb5c3943d530b0cc62d181a878cc0ebe49f3a5f2b175d9d', 1781778234151),
+    ('ca7c6906cce999c484a3416518919f52aca84f2ab5e44e9bc5154158c261ddad', 1781778234152)
 ON CONFLICT DO NOTHING;
