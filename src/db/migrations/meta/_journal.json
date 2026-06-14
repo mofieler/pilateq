@@ -64,6 +64,20 @@
       "when": 1781778234152,
       "tag": "0011_add_waiver_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781778234153,
+      "tag": "0012_add_onboarding_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781778234154,
+      "tag": "0013_extend_studio_config",
+      "breakpoints": true
     }
   ]
 }

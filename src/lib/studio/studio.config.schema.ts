@@ -162,6 +162,10 @@ export const paymentProviderConfigSchema = z.object({
   provider: paymentProviderEnum,
   enabled: z.boolean().default(false),
   displayName: z.string().optional(),
+  // Client-visible metadata (no secrets).
+  iconName: z.string().max(60).optional(),
+  description: z.string().max(255).optional(),
+  isPrimary: z.boolean().optional(),
   // Credentials are stored encrypted in DB; this schema accepts the decrypted shape.
   credentials: z.record(z.string(), z.string()).default({}),
   supportedCurrencies: z.array(z.string().length(3)).optional(),
@@ -191,6 +195,42 @@ export const studioNotificationsSchema = z.object({
   creditLowWarning: z.boolean().default(true),
 });
 export type StudioNotificationsConfig = z.infer<typeof studioNotificationsSchema>;
+
+// ---------------------------------------------------------------------------
+// Onboarding & UI steering schemas
+// ---------------------------------------------------------------------------
+
+export const onboardingStateSchema = z.object({
+  currentStep: z.string().max(50).default('welcome'),
+  completedAt: z.string().datetime().optional(),
+  skipped: z.boolean().default(false),
+});
+export type OnboardingStateConfig = z.infer<typeof onboardingStateSchema>;
+
+export const featureVisibilitySchema = z.object({
+  showCreditBalance: z.boolean().default(true),
+  showMemberships: z.boolean().default(true),
+  showClassPasses: z.boolean().default(false),
+  showWelcomeJourney: z.boolean().default(true),
+  showInvoices: z.boolean().default(true),
+  showEmbedSchedule: z.boolean().default(true),
+  showAdminBilling: z.boolean().default(true),
+});
+export type FeatureVisibilityConfig = z.infer<typeof featureVisibilitySchema>;
+
+export const classCatalogStyleSchema = z.object({
+  cardLayout: z.enum(['compact', 'visual', 'list']).default('visual'),
+  defaultSort: z.enum(['time', 'popularity', 'price']).default('time'),
+});
+export type ClassCatalogStyleConfig = z.infer<typeof classCatalogStyleSchema>;
+
+export const paymentOptionsSchema = z.object({
+  allowPartialPayment: z.boolean().default(false),
+  defaultPaymentProvider: paymentProviderEnum.default('pay_at_studio'),
+  showProcessingFees: z.boolean().default(false),
+  requireManualConfirmationForBankTransfer: z.boolean().default(true),
+});
+export type PaymentOptionsConfig = z.infer<typeof paymentOptionsSchema>;
 
 // ---------------------------------------------------------------------------
 // Main StudioConfig schema
@@ -232,6 +272,12 @@ export const studioConfigSchema = z.object({
   features: studioFeaturesSchema,
 
   notifications: studioNotificationsSchema,
+
+  // Onboarding & dynamic UI steering
+  onboardingState: onboardingStateSchema,
+  featureVisibility: featureVisibilitySchema,
+  classCatalogStyle: classCatalogStyleSchema,
+  paymentOptions: paymentOptionsSchema,
 
 });
 

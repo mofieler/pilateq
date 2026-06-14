@@ -96,6 +96,33 @@ export const DEFAULT_STUDIO_CONFIG = studioConfigSchema.parse({
     cancellationNotice: true,
     creditLowWarning: true,
   },
+
+  onboardingState: {
+    currentStep: 'welcome',
+    skipped: false,
+  },
+
+  featureVisibility: {
+    showCreditBalance: true,
+    showMemberships: true,
+    showClassPasses: false,
+    showWelcomeJourney: true,
+    showInvoices: true,
+    showEmbedSchedule: true,
+    showAdminBilling: true,
+  },
+
+  classCatalogStyle: {
+    cardLayout: 'visual',
+    defaultSort: 'time',
+  },
+
+  paymentOptions: {
+    allowPartialPayment: false,
+    defaultPaymentProvider: 'pay_at_studio',
+    showProcessingFees: false,
+    requireManualConfirmationForBankTransfer: true,
+  },
 } satisfies Partial<StudioConfig>);
 
 export type DefaultStudioConfig = typeof DEFAULT_STUDIO_CONFIG;

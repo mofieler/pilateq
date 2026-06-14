@@ -32,6 +32,11 @@ export const users = pgTable(
     firstMercyUsed: boolean('first_mercy_used').notNull().default(false),
     profileCompleted: boolean('profile_completed').notNull().default(false),
 
+    // Onboarding progress for step-by-step studio setup after first login.
+    onboardingStep: varchar('onboarding_step', { length: 50 }),
+    onboardingCompletedAt: timestamp('onboarding_completed_at', { withTimezone: true, mode: 'date' }),
+    onboardingSkipped: boolean('onboarding_skipped').notNull().default(false),
+
     // Gamification counters — pre-allocated for schema stability across phases
     totalClassesAttended: integer('total_classes_attended').notNull().default(0),
     currentStreak: integer('current_streak').notNull().default(0),

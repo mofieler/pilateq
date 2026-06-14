@@ -72,6 +72,9 @@ CREATE TABLE "users" (
 	"image" varchar(500),
 	"first_mercy_used" boolean DEFAULT false NOT NULL,
 	"profile_completed" boolean DEFAULT false NOT NULL,
+	"onboarding_step" varchar(50),
+	"onboarding_completed_at" timestamp with time zone,
+	"onboarding_skipped" boolean DEFAULT false NOT NULL,
 	"total_classes_attended" integer DEFAULT 0 NOT NULL,
 	"current_streak" integer DEFAULT 0 NOT NULL,
 	"longest_streak" integer DEFAULT 0 NOT NULL,
@@ -796,5 +799,7 @@ INSERT INTO "drizzle"."__drizzle_migrations" ("hash", "created_at") VALUES
     ('ee9c47b13eb45fd061d9b03bfecdf271daebab7e46dddab9c6cd4f70c074d3ad', 1781778234148),
     ('a728653f67ff7d0580579949d930c3843d5f424026b7cd78f00669318391871b', 1781778234150),
     ('e46f4fdb50bcf5564fb5c3943d530b0cc62d181a878cc0ebe49f3a5f2b175d9d', 1781778234151),
-    ('ca7c6906cce999c484a3416518919f52aca84f2ab5e44e9bc5154158c261ddad', 1781778234152)
+    ('ca7c6906cce999c484a3416518919f52aca84f2ab5e44e9bc5154158c261ddad', 1781778234152),
+    ('a60d1316be72c6c0c3bda9c6bdc30aa68d547cde020f1b0b9b9b203f48a494ed', 1781778234153),
+    ('adcd47123d543b25e16c01075937a025d4e2405721fff1d76b3d5988a22d9971', 1781778234154)
 ON CONFLICT DO NOTHING;
