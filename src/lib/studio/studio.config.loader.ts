@@ -95,14 +95,17 @@ async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<Stu
     const configJson = (settings?.configJson as Record<string, unknown> | undefined) ?? {};
 
     return parseStudioConfig({
+      // Start from the validated defaults so missing nested objects (branding,
+      // bookingRules, financial, features, notifications) get sensible values.
+      ...DEFAULT_STUDIO_CONFIG,
       ...configJson,
       id: row.id as string,
       status: row.status as StudioConfig['status'],
       identity: {
         ...DEFAULT_STUDIO_CONFIG.identity,
+        ...(configJson.identity as Record<string, unknown> | undefined),
         name: row.name as string,
         slug: row.slug as string,
-        ...(configJson.identity as Record<string, unknown> | undefined),
       },
       timezone: row.timezone as string,
       defaultLocale: row.defaultLocale as string,
@@ -121,10 +124,19 @@ async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<Stu
 
 function loadStudioConfigFromEnv(): StudioConfig {
   const legacy = studioConfigFromLegacyEnv();
+  const legacyIdentity = (legacy.identity ?? {}) as Partial<StudioConfig['identity']>;
+
   return parseStudioConfig({
     ...DEFAULT_STUDIO_CONFIG,
     ...legacy,
     status: 'active',
+    identity: {
+      ...DEFAULT_STUDIO_CONFIG.identity,
+      ...legacyIdentity,
+      // Keep the validated defaults for email/website if the env values are empty.
+      ...(legacyIdentity.email?.trim() ? { email: legacyIdentity.email } : {}),
+      ...(legacyIdentity.website?.trim() ? { website: legacyIdentity.website } : {}),
+    },
     classTypes: {
       ...DEFAULT_STUDIO_CONFIG.classTypes,
       ...legacy.classTypes,
@@ -132,6 +144,26 @@ function loadStudioConfigFromEnv(): StudioConfig {
     creditTypes: {
       ...DEFAULT_STUDIO_CONFIG.creditTypes,
       ...legacy.creditTypes,
+    },
+    branding: {
+      ...DEFAULT_STUDIO_CONFIG.branding,
+      ...legacy.branding,
+    },
+    bookingRules: {
+      ...DEFAULT_STUDIO_CONFIG.bookingRules,
+      ...legacy.bookingRules,
+    },
+    financial: {
+      ...DEFAULT_STUDIO_CONFIG.financial,
+      ...legacy.financial,
+    },
+    features: {
+      ...DEFAULT_STUDIO_CONFIG.features,
+      ...legacy.features,
+    },
+    notifications: {
+      ...DEFAULT_STUDIO_CONFIG.notifications,
+      ...legacy.notifications,
     },
   });
 }
