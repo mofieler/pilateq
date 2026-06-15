@@ -33,15 +33,18 @@ export function buildCspForRequest(request: NextRequest, embed: boolean, nonce?:
   const frameAncestors = embed ? getEmbedFrameAncestors() : "'none'";
 
   // Per CSP3, a present nonce-source causes supporting browsers to ignore
-  // 'unsafe-inline'. Keeping 'unsafe-inline' as a fallback lets older browsers
-  // and Next.js-injected inline styles/scripts render correctly.
+  // 'unsafe-inline'. We keep the nonce for script-src so Next.js-injected
+  // inline scripts are allowed, but style-src only needs 'unsafe-inline'
+  // because many UI libraries (and Next.js chunks) apply dynamic inline
+  // styles that cannot carry a nonce.
   const scriptNonce = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
-  const styleNonce = nonce ? `'nonce-${nonce}'` : "'unsafe-inline'";
 
   return [
     "default-src 'self';",
     `script-src 'self' ${scriptNonce} 'unsafe-inline' https://challenges.cloudflare.com;`,
-    `style-src 'self' ${styleNonce} 'unsafe-inline';`,
+    "style-src 'self' 'unsafe-inline';",
+    "style-src-attr 'self' 'unsafe-inline';",
+    "style-src-elem 'self' 'unsafe-inline';",
     "img-src 'self' blob: data: https:;",
     "font-src 'self' data:;",
     "connect-src 'self' https://challenges.cloudflare.com;",

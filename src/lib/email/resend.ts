@@ -7,3 +7,4 @@ export * from './billing.emails';
 export * from './membership.emails';
 export * from './welcome.emails';
 export * from './duo.emails';
+export * from './invite.emails';

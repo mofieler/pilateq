@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Building2, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { claimStudioAction } from '@/modules/onboarding/actions/claimStudio.actions';
+import { validateInviteTokenAction } from '@/modules/superadmin/actions/invite.actions';
 import { PasswordStrengthMeter, getPasswordStrength } from '@/components/shared/PasswordStrengthMeter';
 import { AuthShell } from '@/components/shared/AuthShell';
 
@@ -28,6 +32,9 @@ function sanitizeSlug(input: string): string {
 
 export default function StartPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawInviteToken = searchParams.get('invite') ?? '';
+
   const [formData, setFormData] = useState({
     studioName: '',
     studioSlug: '',
@@ -40,6 +47,10 @@ export default function StartPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [inviteStatus, setInviteStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+  const [inviteError, setInviteError] = useState('');
+  const [inviteEmailBound, setInviteEmailBound] = useState(false);
+  const [inviteSlugBound, setInviteSlugBound] = useState(false);
 
   const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN;
   const previewUrl = useMemo(() => {
@@ -68,6 +79,39 @@ export default function StartPage() {
       return next;
     });
   }
+
+  const validateInvite = useCallback(async (token: string) => {
+    if (!token) {
+      setInviteStatus('idle');
+      return;
+    }
+    setInviteStatus('validating');
+    setInviteError('');
+    try {
+      const result = await validateInviteTokenAction(token);
+      if (!result.success) {
+        setInviteStatus('invalid');
+        setInviteError(result.error ?? 'Invite link is not valid.');
+        return;
+      }
+      setInviteStatus('valid');
+      if (result.email) {
+        setFormData((prev) => ({ ...prev, adminEmail: result.email! }));
+        setInviteEmailBound(true);
+      }
+      if (result.studioSlug) {
+        setFormData((prev) => ({ ...prev, studioSlug: result.studioSlug! }));
+        setInviteSlugBound(true);
+      }
+    } catch {
+      setInviteStatus('invalid');
+      setInviteError('Could not verify invite link. Please try again.');
+    }
+  }, []);
+
+  useEffect(() => {
+    validateInvite(rawInviteToken);
+  }, [rawInviteToken, validateInvite]);
 
   function validate(): boolean {
     const nextErrors: Record<string, string> = {};
@@ -133,6 +177,7 @@ export default function StartPage() {
         adminEmail: formData.adminEmail.trim().toLowerCase(),
         adminPassword: formData.adminPassword,
         confirmPassword: formData.confirmPassword,
+        inviteToken: rawInviteToken || undefined,
       });
 
       if (!result.success) {
@@ -172,6 +217,21 @@ export default function StartPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
+              {inviteStatus === 'validating' && (
+                <p className="text-sm text-[#6b3d32] bg-[#c4a88a]/10 p-3 rounded-xl border border-[#c4a88a]/20">
+                  Checking your invite link…
+                </p>
+              )}
+              {inviteStatus === 'invalid' && (
+                <p role="alert" className="text-sm text-[#c45c4a] bg-[#c45c4a]/10 p-3 rounded-xl border border-[#c45c4a]/20">
+                  {inviteError || 'This invite link is not valid or has expired.'}
+                </p>
+              )}
+              {inviteStatus === 'valid' && (
+                <p className="text-sm text-[#2d6a2d] bg-[#f0faf0] p-3 rounded-xl border border-[#b2dfb2]">
+                  ✓ Invite accepted. Complete the form below to create your studio.
+                </p>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="studioName" className="text-[#4e2b22]">
                   Studio name
@@ -199,7 +259,7 @@ export default function StartPage() {
                   onChange={(e) => updateField('studioSlug', e.target.value)}
                   onBlur={() => setTouched((prev) => ({ ...prev, studioSlug: true }))}
                   placeholder="my-studio"
-                  disabled={loading}
+                  disabled={loading || inviteSlugBound}
                   className="bg-[#faf9f7]/80 border-[#ede8e5] text-[#4e2b22] placeholder:text-[#8b6b5c]/50 focus:border-[#c4a88a] focus:ring-[#c4a88a]/20 rounded-xl"
                   aria-invalid={!!errors.studioSlug}
                 />
@@ -221,7 +281,7 @@ export default function StartPage() {
                   onChange={(e) => updateField('adminEmail', e.target.value)}
                   onBlur={() => setTouched((prev) => ({ ...prev, adminEmail: true }))}
                   placeholder="you@example.com"
-                  disabled={loading}
+                  disabled={loading || inviteEmailBound}
                   className="bg-[#faf9f7]/80 border-[#ede8e5] text-[#4e2b22] placeholder:text-[#8b6b5c]/50 focus:border-[#c4a88a] focus:ring-[#c4a88a]/20 rounded-xl"
                   aria-invalid={!!errors.adminEmail}
                 />
@@ -285,7 +345,7 @@ export default function StartPage() {
                 type="submit"
                 variant="boutique"
                 className="w-full min-h-[44px]"
-                disabled={loading || !getPasswordStrength(formData.adminPassword).isValid}
+                disabled={loading || inviteStatus === 'invalid' || !getPasswordStrength(formData.adminPassword).isValid}
               >
                 {loading ? 'Creating your studio…' : 'Create my studio'}
               </Button>

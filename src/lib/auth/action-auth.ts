@@ -35,6 +35,21 @@ async function getAuthSession(): Promise<Session | null> {
 }
 
 /**
+ * Require an authenticated platform superadmin session.
+ * Returns `{ userId, role, studioId }` or throws `ActionAuthError` with code `UNAUTHORIZED`.
+ */
+export async function requireSuperAdmin(): Promise<AuthActionContext> {
+  const session = await getAuthSession();
+  const user = getSessionUser(session);
+
+  if (!user || user.role !== 'superadmin' || !user.studioId) {
+    throw new ActionAuthError();
+  }
+
+  return { userId: user.id, role: user.role, studioId: user.studioId };
+}
+
+/**
  * Require an authenticated admin session.
  * Returns `{ userId, role, studioId }` or throws `ActionAuthError` with code `UNAUTHORIZED`.
  */

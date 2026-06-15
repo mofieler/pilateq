@@ -53,3 +53,23 @@ export async function requireAdminRole(request: NextRequest) {
   
   return session;
 }
+
+export async function requireSuperAdminRole(request: NextRequest) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 },
+    );
+  }
+
+  if (session.user.role !== 'superadmin') {
+    return NextResponse.json(
+      { error: 'Superadmin access required' },
+      { status: 403 },
+    );
+  }
+
+  return session;
+}

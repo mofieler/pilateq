@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { db } from "@/db";
-import { users, studios } from "@/db/schema";
+import { users, studios, type UserRole } from "@/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import {
@@ -176,6 +176,21 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(
                 return null;
               }
 
+              // Superadmins log in without needing a resolved tenant or active
+              // studio membership. They operate on the platform level.
+              if (user.role === 'superadmin') {
+                return {
+                  id: user.id,
+                  email: user.email,
+                  name: user.name,
+                  image: user.image || user.avatarUrl || undefined,
+                  role: 'superadmin',
+                  studioId: user.studioId,
+                  memberRole: undefined,
+                  needsProfileCompletion: false,
+                };
+              }
+
               // Resolve the studio for the current hostname and verify the user
               // has an active membership there.
               const host =
@@ -233,6 +248,11 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(
 
       callbacks: {
         async signIn({ user, account }) {
+          // Platform superadmins bypass tenant-resolution and membership checks.
+          if ((user as any).role === 'superadmin') {
+            return true;
+          }
+
           // Resolve the tenant from the request hostname BEFORE any access decision.
           const headersList = await headers();
           const host =
@@ -416,7 +436,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(
         async session({ session, token }) {
           if (session.user) {
             session.user.id = token.id as string;
-            session.user.role = token.role as string;
+            session.user.role = token.role as UserRole;
             session.user.studioId = token.studioId as string | undefined;
             session.user.studioStatus = token.studioStatus as
               | string

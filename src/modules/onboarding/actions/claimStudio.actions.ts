@@ -2,8 +2,9 @@
 
 import { z } from 'zod';
 import { db } from '@/db';
-import { studios, studioSettings, users, verificationTokens, studioMemberships } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { studios, studioSettings, users, verificationTokens, studioMemberships, studioClaimInvites } from '@/db/schema';
+import { and, eq, isNull } from 'drizzle-orm';
+import { hashInviteToken } from '@/lib/superadmin/invite-tokens';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { headers } from 'next/headers';
@@ -54,6 +55,7 @@ const claimStudioSchema = z
       .regex(/[a-zA-Z]/, 'Password must contain at least one letter')
       .regex(/[0-9]/, 'Password must contain at least one number'),
     confirmPassword: z.string(),
+    inviteToken: z.string().optional(),
   })
   .refine((data) => data.adminPassword === data.confirmPassword, {
     message: 'Passwords do not match',
@@ -79,6 +81,12 @@ function sanitizeSlug(input: string): string {
     .slice(0, 63);
 }
 
+class ClaimInviteConsumedError extends Error {
+  constructor() {
+    super('Invite was consumed by another request');
+  }
+}
+
 /**
  * Public server action for the very first studio owner.
  * Creates the studio in onboarding mode, attaches an admin user, and sends
@@ -99,7 +107,50 @@ export async function claimStudioAction(input: unknown) {
       };
     }
 
-    if (!isSelfServiceSignupAllowed()) {
+    const validated = claimStudioSchema.safeParse(input);
+    if (!validated.success) {
+      const first = validated.error.issues[0];
+      return { success: false, error: first?.message ?? 'Invalid input', code: 'INVALID_INPUT' };
+    }
+
+    const { studioName, studioSlug, adminEmail, adminPassword, inviteToken } = validated.data;
+    const cleanSlug = sanitizeSlug(studioSlug);
+    const normalizedEmail = adminEmail.toLowerCase().trim();
+
+    if (!cleanSlug) {
+      return { success: false, error: 'Invalid studio slug', code: 'INVALID_INPUT' };
+    }
+
+    const selfServiceAllowed = isSelfServiceSignupAllowed();
+
+    // Invite-only enforcement: when self-service is disabled, a valid invite token is required.
+    type MatchedInvite = typeof studioClaimInvites.$inferSelect;
+    let matchedInvite: MatchedInvite | null = null;
+    if (inviteToken) {
+      const hash = hashInviteToken(inviteToken);
+      const [invite] = await db
+        .select()
+        .from(studioClaimInvites)
+        .where(eq(studioClaimInvites.tokenHash, hash))
+        .limit(1);
+
+      if (!invite) {
+        return { success: false, error: 'Invalid invite link.', code: 'INVALID_INVITE' };
+      }
+      if (invite.usedAt) {
+        return { success: false, error: 'Invite has already been used.', code: 'INVITE_USED' };
+      }
+      if (invite.expiresAt < new Date()) {
+        return { success: false, error: 'Invite has expired.', code: 'INVITE_EXPIRED' };
+      }
+      if (invite.email && invite.email !== normalizedEmail) {
+        return { success: false, error: 'This invite is linked to a different email address.', code: 'INVITE_EMAIL_MISMATCH' };
+      }
+      if (invite.studioSlug && invite.studioSlug !== cleanSlug) {
+        return { success: false, error: 'This invite is linked to a different studio slug.', code: 'INVITE_SLUG_MISMATCH' };
+      }
+      matchedInvite = invite;
+    } else if (!selfServiceAllowed) {
       return {
         success: false,
         error: 'Self-service signup is currently disabled. Please contact support.',
@@ -107,23 +158,8 @@ export async function claimStudioAction(input: unknown) {
       };
     }
 
-    const validated = claimStudioSchema.safeParse(input);
-    if (!validated.success) {
-      const first = validated.error.issues[0];
-      return { success: false, error: first?.message ?? 'Invalid input', code: 'INVALID_INPUT' };
-    }
-
-    const { studioName, studioSlug, adminEmail, adminPassword } = validated.data;
-    const cleanSlug = sanitizeSlug(studioSlug);
-
-    if (!cleanSlug) {
-      return { success: false, error: 'Invalid studio slug', code: 'INVALID_INPUT' };
-    }
-
-    const normalizedEmail = adminEmail.toLowerCase().trim();
-
     const allowedDomains = getAllowedSignupDomains();
-    if (allowedDomains && !matchesAllowedDomain(normalizedEmail, allowedDomains)) {
+    if (!matchedInvite && allowedDomains && !matchesAllowedDomain(normalizedEmail, allowedDomains)) {
       return {
         success: false,
         error: 'This email domain is not allowed for self-service signup.',
@@ -169,14 +205,28 @@ export async function claimStudioAction(input: unknown) {
       .then((rows) => rows[0]);
 
     if (existingEmail) {
-      // Don't reveal account existence
-      return { success: true };
+      // Don't reveal account existence and don't consume the invite.
+      return { success: false, error: 'This email is already registered.', code: 'EMAIL_EXISTS' };
     }
 
     const passwordHash = await bcrypt.hash(adminPassword, 12);
 
     // Create studio and admin user in one transaction
     const result = await db.transaction(async (tx) => {
+      // Re-check and lock the invite inside the transaction to prevent TOCTOU/double-spend.
+      if (matchedInvite) {
+        const [lockedInvite] = await tx
+          .select()
+          .from(studioClaimInvites)
+          .where(eq(studioClaimInvites.id, matchedInvite.id))
+          .for('update')
+          .limit(1);
+
+        if (!lockedInvite || lockedInvite.usedAt) {
+          throw new ClaimInviteConsumedError();
+        }
+      }
+
       const [studio] = await tx
         .insert(studios)
         .values({
@@ -220,9 +270,25 @@ export async function claimStudioAction(input: unknown) {
         studioId: studio.id,
         role: 'owner',
         status: 'active',
-        invitedByUserId: null,
+        invitedByUserId: matchedInvite?.invitedByUserId ?? null,
         joinedAt: new Date(),
       });
+
+      if (matchedInvite) {
+        const [consumedInvite] = await tx
+          .update(studioClaimInvites)
+          .set({
+            usedAt: new Date(),
+            usedByUserId: adminUser.id,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(studioClaimInvites.id, matchedInvite.id), isNull(studioClaimInvites.usedAt)))
+          .returning();
+
+        if (!consumedInvite) {
+          throw new ClaimInviteConsumedError();
+        }
+      }
 
       return { studio, adminUser };
     });
@@ -247,6 +313,9 @@ export async function claimStudioAction(input: unknown) {
 
     return { success: true, studioId: result.studio.id, slug: cleanSlug, host };
   } catch (error) {
+    if (error instanceof ClaimInviteConsumedError) {
+      return { success: false, error: 'Invite has already been used.', code: 'INVITE_USED' };
+    }
     console.error('[CLAIM_STUDIO] Error:', error);
     return { success: false, error: 'An error occurred while claiming your studio', code: 'UNKNOWN_ERROR' };
   }

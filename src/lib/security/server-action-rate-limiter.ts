@@ -33,7 +33,10 @@ export async function checkRateLimit(
   identifier: string,
 ): Promise<{ success: boolean; remaining: number; resetTime?: number }> {
   const ip = await getClientIP();
-  const key = `${config.keyPrefix}:${ip}:${identifier}`;
+  const key =
+    config.keyPrefix === "invite_accept"
+      ? `${config.keyPrefix}:${ip}`
+      : `${config.keyPrefix}:${ip}:${identifier}`;
   const result = await rateLimitHit(key, config.windowMs, config.maxRequests);
   return {
     success: result.success,
@@ -82,6 +85,12 @@ export const membershipSubscribeRateLimitConfig: RateLimitConfig = {
 
 export const inviteAcceptRateLimitConfig: RateLimitConfig = {
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 10, // 10 invite-token attempts per 15 minutes per token/IP
+  maxRequests: 10, // 10 invite-token attempts per 15 minutes per IP
   keyPrefix: "invite_accept",
+};
+
+export const superadminInviteRateLimitConfig: RateLimitConfig = {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 20, // 20 invite creations per 15 minutes per superadmin
+  keyPrefix: "superadmin_invite_create",
 };

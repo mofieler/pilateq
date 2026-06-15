@@ -101,9 +101,22 @@ function clearSessionAndRedirect(request: NextRequest, target: string, nonce: st
   return addSecurityHeaders(request, response, nonce);
 }
 
+function setNoStoreHeaders(response: NextResponse): NextResponse {
+  response.headers.set(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+  );
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const nonce = generateNonce();
+
+  // Never cache HTML pages by CDN/browser after a redeploy, because they
+  // contain build-specific Server Action IDs. Static assets and API routes are
+  // excluded by the matcher below, so this only affects page responses.
+  const mustNeverCache = true;
 
   // Resolve tenant from request hostname. This is used later for studio
   // scoping and for the onboarding first-run flow.
@@ -133,6 +146,7 @@ export async function middleware(request: NextRequest) {
         secure: useSecureCookies(),
       });
     }
+    if (mustNeverCache) setNoStoreHeaders(response);
     return response;
   }
 
@@ -141,6 +155,31 @@ export async function middleware(request: NextRequest) {
   if (!session?.user) {
     const loginUrl = new URL('/login', request.url);
     return addSecurityHeaders(request, NextResponse.redirect(loginUrl), nonce);
+  }
+
+  const isSuperAdmin = session.user.role === 'superadmin';
+
+  // /superadmin is platform-only and requires the superadmin role.
+  if (pathname.startsWith('/superadmin')) {
+    if (!isSuperAdmin) {
+      return addSecurityHeaders(
+        request,
+        NextResponse.redirect(new URL('/login?error=AccessDenied', request.url)),
+        nonce,
+      );
+    }
+    const response = addSecurityHeaders(request, NextResponse.next(), nonce);
+    response.headers.set('x-nonce', nonce);
+    if (mustNeverCache) setNoStoreHeaders(response);
+    return response;
+  }
+
+  // Superadmins bypass tenant scoping and onboarding for all other routes.
+  if (isSuperAdmin) {
+    const response = addSecurityHeaders(request, NextResponse.next(), nonce);
+    response.headers.set('x-nonce', nonce);
+    if (mustNeverCache) setNoStoreHeaders(response);
+    return response;
   }
 
   // Studio scoping: the session's active studio must match the resolved tenant.
@@ -202,6 +241,7 @@ export async function middleware(request: NextRequest) {
       secure: useSecureCookies(),
     });
   }
+  if (mustNeverCache) setNoStoreHeaders(response);
   return response;
 }
 

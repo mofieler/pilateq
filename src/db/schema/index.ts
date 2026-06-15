@@ -12,6 +12,7 @@ export * from './duo-invites.schema';
 export * from './cancellation-mercy.schema';
 export * from './welcome.schema';
 export * from './rate-limits.schema';
+export * from './studio-claim-invites.schema';
 
 export * from './audit-logs.schema';
 export * from './studios.schema';
@@ -42,6 +43,7 @@ import type { duoInvites } from './duo-invites.schema';
 import type { cancellationMercyUses } from './cancellation-mercy.schema';
 import type { welcomeJourneyRequests } from './welcome.schema';
 import type { rateLimits } from './rate-limits.schema';
+import type { studioClaimInvites } from './studio-claim-invites.schema';
 import type { auditLogs } from './audit-logs.schema';
 import type { studioMemberships, studioInvites } from './memberships.schema';
 import type {
@@ -146,6 +148,10 @@ export type NewWelcomeJourneyRequest = InferInsertModel<typeof welcomeJourneyReq
 // Rate Limits
 export type RateLimit = InferSelectModel<typeof rateLimits>;
 export type NewRateLimit = InferInsertModel<typeof rateLimits>;
+
+// Studio claim invites
+export type StudioClaimInvite = InferSelectModel<typeof studioClaimInvites>;
+export type NewStudioClaimInvite = InferInsertModel<typeof studioClaimInvites>;
 
 // Audit Logs
 export type AuditLog = InferSelectModel<typeof auditLogs>;
