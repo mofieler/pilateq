@@ -240,6 +240,7 @@ export async function claimStudioAction(input: unknown) {
     });
 
     // Fire-and-forget verification email
+    console.log('[CLAIM_STUDIO] About to send verification email to:', result.adminUser.email);
     sendVerificationEmail(result.adminUser.email, result.adminUser.name ?? 'Studio Admin', token).catch((err) =>
       console.error('[CLAIM_STUDIO] Failed to send verification email:', err),
     );

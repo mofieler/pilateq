@@ -12,6 +12,7 @@ export function getResend(): Resend {
         },
       } as unknown as Resend;
     } else {
+      console.log('[email] Initializing Resend client (key present)');
       _resend = new Resend(process.env.RESEND_API_KEY);
     }
   }
@@ -36,6 +37,8 @@ function deriveDefaultFromEmail(): string {
 }
 
 export const FROM = process.env.EMAIL_FROM ?? deriveDefaultFromEmail();
+console.log('[email] FROM resolved to:', FROM);
+console.log('[email] APP_URL resolved to:', APP_URL);
 
 export const COLORS = {
   primary:      '#4e2b22',
