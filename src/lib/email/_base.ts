@@ -18,12 +18,14 @@ export function getResend(): Resend {
   return _resend;
 }
 
-export const APP_URL    = APP_CONFIG.APP_URL;
+export const APP_URL    = process.env.APP_URL ?? APP_CONFIG.APP_URL;
 export const APP_NAME   = APP_CONFIG.APP_NAME;
 export const STUDIO_NAME = process.env.STUDIO_NAME ?? APP_CONFIG.APP_NAME;
 
 function deriveDefaultFromEmail(): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? APP_CONFIG.APP_URL;
+  const appUrl = process.env.EMAIL_FROM_DOMAIN
+    ? `https://${process.env.EMAIL_FROM_DOMAIN}`
+    : (process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? APP_CONFIG.APP_URL);
   let hostname = 'localhost';
   try {
     hostname = new URL(appUrl).hostname || 'localhost';

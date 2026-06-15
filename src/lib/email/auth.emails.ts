@@ -2,7 +2,7 @@ import { getResend, FROM, APP_URL, APP_NAME, buildBaseTemplate } from './_base';
 
 export async function sendVerificationEmail(email: string, name: string, token: string): Promise<void> {
   const link = `${APP_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}&identifier=${encodeURIComponent(email)}`;
-  await getResend().emails.send({
+  const result = await getResend().emails.send({
     from: FROM, to: email,
     subject: `Verify your email – ${APP_NAME}`,
     html: buildBaseTemplate({
@@ -13,6 +13,11 @@ export async function sendVerificationEmail(email: string, name: string, token: 
       expiryText: 'This link expires in <strong>24 hours</strong>. If you did not create an account, you can ignore this email.',
     }),
   });
+
+  if (result.error) {
+    console.error('[email] Resend rejected verification email:', result.error);
+    throw new Error(`Resend email failed: ${result.error.name} - ${result.error.message}`);
+  }
 }
 
 export async function sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {
