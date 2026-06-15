@@ -16,7 +16,7 @@
 
 import { cache } from 'react';
 import { headers } from 'next/headers';
-import { parseStudioConfig, type StudioConfig } from './studio.config.schema';
+import { parseStudioConfig, safeParseStudioConfig, type StudioConfig } from './studio.config.schema';
 import { DEFAULT_STUDIO_CONFIG } from './studio.config.default';
 import { studioConfigFromLegacyEnv } from './studio.config.schema';
 import {
@@ -126,7 +126,7 @@ async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<Stu
     const settings = settingsRow as Record<string, unknown> | undefined;
     const configJson = (settings?.configJson as Record<string, unknown> | undefined) ?? {};
 
-    return parseStudioConfig({
+    const candidate: Record<string, unknown> = {
       // Start from the validated defaults so missing nested objects (branding,
       // bookingRules, financial, features, notifications) get sensible values.
       ...DEFAULT_STUDIO_CONFIG,
@@ -142,7 +142,21 @@ async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<Stu
       timezone: row.timezone as string,
       defaultLocale: row.defaultLocale as string,
       updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : (row.updatedAt as string | undefined),
-    });
+    };
+
+    const parsed = safeParseStudioConfig(candidate);
+    if (parsed.success) {
+      return parsed.data;
+    }
+
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[StudioConfig] Parsed DB config for studio',
+      row.slug,
+      'failed validation. Falling back to env/file config. Errors:',
+      parsed.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ')
+    );
+    return null;
   } catch (error) {
     // eslint-disable-next-line no-console
     console.warn('[StudioConfig] DB load failed, falling back to env/file config.', error);
@@ -154,20 +168,49 @@ async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<Stu
 // File / env loading
 // ---------------------------------------------------------------------------
 
-function loadStudioConfigFromEnv(): StudioConfig {
+function normalizeWebsite(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+  let url = raw.trim();
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
+  try {
+    // eslint-disable-next-line no-new
+    new URL(url);
+    return url;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeEmail(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+  const email = raw.trim();
+  // Same regex as z.string().email() in the current Zod version.
+  const emailRegex = /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/;
+  return emailRegex.test(email) ? email : undefined;
+}
+
+function buildEnvConfig(): StudioConfig {
   const legacy = studioConfigFromLegacyEnv();
   const legacyIdentity = (legacy.identity ?? {}) as Partial<StudioConfig['identity']>;
 
-  return parseStudioConfig({
+  const normalizedIdentity: Partial<StudioConfig['identity']> = {
+    ...DEFAULT_STUDIO_CONFIG.identity,
+    ...legacyIdentity,
+  };
+
+  const email = normalizeEmail(legacyIdentity.email) ?? DEFAULT_STUDIO_CONFIG.identity.email;
+  const website = normalizeWebsite(legacyIdentity.website) ?? DEFAULT_STUDIO_CONFIG.identity.website;
+
+  const candidate: Record<string, unknown> = {
     ...DEFAULT_STUDIO_CONFIG,
     ...legacy,
     status: 'active',
     identity: {
-      ...DEFAULT_STUDIO_CONFIG.identity,
-      ...legacyIdentity,
-      // Keep the validated defaults for email/website if the env values are empty.
-      ...(legacyIdentity.email?.trim() ? { email: legacyIdentity.email } : {}),
-      ...(legacyIdentity.website?.trim() ? { website: legacyIdentity.website } : {}),
+      ...normalizedIdentity,
+      email,
+      website,
     },
     classTypes: {
       ...DEFAULT_STUDIO_CONFIG.classTypes,
@@ -197,7 +240,24 @@ function loadStudioConfigFromEnv(): StudioConfig {
       ...DEFAULT_STUDIO_CONFIG.notifications,
       ...legacy.notifications,
     },
-  });
+  };
+
+  const parsed = safeParseStudioConfig(candidate);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  // Last-resort fallback: return the validated defaults so the app can still render.
+  // eslint-disable-next-line no-console
+  console.error(
+    '[StudioConfig] Env/file config failed validation; returning defaults. Errors:',
+    parsed.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ')
+  );
+  return DEFAULT_STUDIO_CONFIG;
+}
+
+function loadStudioConfigFromEnv(): StudioConfig {
+  return buildEnvConfig();
 }
 
 // ---------------------------------------------------------------------------
