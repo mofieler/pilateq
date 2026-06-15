@@ -70,71 +70,85 @@ $$;
 -- surface small and guarantees that SELECT/INSERT/UPDATE/DELETE all see the
 -- same scope.
 
+DROP POLICY IF EXISTS tenant_isolation ON "class_templates";
 CREATE POLICY tenant_isolation ON "class_templates"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "class_sessions";
 CREATE POLICY tenant_isolation ON "class_sessions"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "bookings";
 CREATE POLICY tenant_isolation ON "bookings"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "instructors";
 CREATE POLICY tenant_isolation ON "instructors"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "credit_packages";
 CREATE POLICY tenant_isolation ON "credit_packages"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "credit_purchases";
 CREATE POLICY tenant_isolation ON "credit_purchases"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "credit_transactions";
 CREATE POLICY tenant_isolation ON "credit_transactions"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "user_memberships";
 CREATE POLICY tenant_isolation ON "user_memberships"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "membership_plans";
 CREATE POLICY tenant_isolation ON "membership_plans"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "waitlist_entries";
 CREATE POLICY tenant_isolation ON "waitlist_entries"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "duo_invites";
 CREATE POLICY tenant_isolation ON "duo_invites"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "welcome_journey_requests";
 CREATE POLICY tenant_isolation ON "welcome_journey_requests"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "studio_memberships";
 CREATE POLICY tenant_isolation ON "studio_memberships"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
   WITH CHECK (studio_id = current_studio_id());
 
+DROP POLICY IF EXISTS tenant_isolation ON "studio_invites";
 CREATE POLICY tenant_isolation ON "studio_invites"
   FOR ALL TO public
   USING (studio_id = current_studio_id())
@@ -143,6 +157,7 @@ CREATE POLICY tenant_isolation ON "studio_invites"
 -- audit_logs.studio_id is nullable (system-level events may not have a studio).
 -- The policy still scopes tenant-visible rows to the current studio; system
 -- events with NULL studio_id are only visible when no tenant context is set.
+DROP POLICY IF EXISTS tenant_isolation ON "audit_logs";
 CREATE POLICY tenant_isolation ON "audit_logs"
   FOR ALL TO public
   USING (
