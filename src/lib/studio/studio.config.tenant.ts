@@ -18,7 +18,14 @@ export interface TenantResolution {
  */
 export function resolveTenantFromHostname(hostname: string): TenantResolution {
   const clean = hostname.toLowerCase().split(':')[0];
-  const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN?.toLowerCase();
+  // PLATFORM_DOMAIN is a server-side runtime alias so you don't have to
+  // rebuild the image when the deployment domain changes. NEXT_PUBLIC_* is
+  // still preferred because it also drives client-side preview links.
+  const platformDomain = (
+    process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ??
+    process.env.PLATFORM_DOMAIN ??
+    ''
+  ).toLowerCase();
 
   if (platformDomain && clean.endsWith(`.${platformDomain}`)) {
     const slug = clean.replace(`.${platformDomain}`, '');
