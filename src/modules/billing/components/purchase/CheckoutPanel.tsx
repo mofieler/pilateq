@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { BanknoteIcon, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
+import { BanknoteIcon, CreditCard, AlertCircle, Loader2, Building2, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useStudioConfig } from '@/lib/studio';
+import { useEnabledPaymentProviders } from '@/lib/studio';
+import type { PaymentProvider } from '@/lib/studio/studio.config.schema';
 import { OrderSummary } from './OrderSummary';
 import type { Selection, PaymentMethod } from './usePurchaseState';
 
@@ -41,10 +42,7 @@ export function CheckoutPanel({
   onPurchase,
   welcomeStatus,
 }: CheckoutPanelProps) {
-  const studioConfig = useStudioConfig();
-  const stripeEnabled = studioConfig.paymentProviders.some(
-    (p) => p.provider === 'stripe' && p.enabled && p.credentials?.secretKey
-  );
+  const enabledProviders = useEnabledPaymentProviders();
   const isMembership = selection?.kind === 'membership';
   const canPurchase = isAuthenticated && acceptedTerms && acceptedWithdrawal && !isProcessing;
 
@@ -60,17 +58,17 @@ export function CheckoutPanel({
 
       {/* Payment method selector */}
       <div className="mb-5 grid gap-3 sm:grid-cols-2">
-        <PaymentMethodCard
-          method="stripe"
-          isSelected={paymentMethod === 'stripe'}
-          onSelect={() => onPaymentMethodChange('stripe')}
-          disabled={!stripeEnabled || isMembership}
-        />
-        <PaymentMethodCard
-          method="pay_at_studio"
-          isSelected={paymentMethod === 'pay_at_studio'}
-          onSelect={() => onPaymentMethodChange('pay_at_studio')}
-        />
+        {enabledProviders.map((provider) => (
+          <PaymentMethodCard
+            key={provider.provider}
+            method={provider.provider}
+            displayName={provider.displayName}
+            description={provider.description}
+            isSelected={paymentMethod === provider.provider}
+            onSelect={() => onPaymentMethodChange(provider.provider)}
+            disabled={isMembership && provider.provider !== 'pay_at_studio'}
+          />
+        ))}
       </div>
 
       {/* Order details */}
@@ -101,26 +99,7 @@ export function CheckoutPanel({
       )}
 
       {/* Payment info */}
-      {paymentMethod === 'pay_at_studio' && (
-        <div className="mt-4 rounded-xl bg-[#d4a574]/10 p-4">
-          <p className="text-sm text-[#6b3d32]">
-            <span className="font-medium">Pay at Studio or via Bank Transfer:</span>{' '}
-            {selection?.kind === 'membership'
-              ? 'Your membership starts immediately and credits are granted every 7 days.'
-              : "We'll reserve your credits. They will be activated once the studio confirms your payment."}
-            {' '}Please pay within <strong>14 days</strong> — bring the amount to the studio or transfer to the bank account on your invoice.
-            An invoice (PDF) will be emailed to you.
-          </p>
-        </div>
-      )}
-      {paymentMethod === 'stripe' && (
-        <div className="mt-4 rounded-xl bg-[#635bff]/10 p-4">
-          <p className="text-sm text-[#6b3d32]">
-            <span className="font-medium">Card payment via Stripe:</span>{' '}
-            You will be redirected to Stripe's secure checkout. Credits are added automatically once payment is confirmed.
-          </p>
-        </div>
-      )}
+      {paymentMethod && <PaymentInfo method={paymentMethod} selection={selection} />}
 
       {/* Error */}
       {purchaseError && (
@@ -193,18 +172,41 @@ export function CheckoutPanel({
 
 // ─── Payment method card ──────────────────────────────────────────────────────
 
+function providerMeta(method: PaymentMethod) {
+  switch (method) {
+    case 'stripe':
+      return { icon: CreditCard, label: 'Card / Stripe', fallbackDesc: 'Secure card payment', color: 'text-[#635bff] bg-[#635bff]/10' };
+    case 'paypal':
+      return { icon: Wallet, label: 'PayPal', fallbackDesc: 'Pay with your PayPal account', color: 'text-[#003087] bg-[#003087]/10' };
+    case 'sepa':
+      return { icon: Building2, label: 'SEPA Direct Debit', fallbackDesc: 'Direct debit from your bank account', color: 'text-[#4e2b22] bg-[#4e2b22]/10' };
+    case 'bank_transfer':
+      return { icon: Building2, label: 'Bank Transfer', fallbackDesc: 'Transfer manually to our account', color: 'text-[#4e2b22] bg-[#4e2b22]/10' };
+    case 'cash':
+      return { icon: BanknoteIcon, label: 'Cash', fallbackDesc: 'Pay with cash at the studio', color: 'text-[#4e2b22] bg-[#4e2b22]/10' };
+    case 'pay_at_studio':
+    default:
+      return { icon: BanknoteIcon, label: 'Pay at Studio', fallbackDesc: 'Cash or bank transfer', color: 'text-[#4e2b22] bg-[#4e2b22]/10' };
+  }
+}
+
 function PaymentMethodCard({
   method,
+  displayName,
+  description,
   isSelected,
   onSelect,
   disabled = false,
 }: {
   method: PaymentMethod;
+  displayName?: string;
+  description?: string;
   isSelected: boolean;
   onSelect: () => void;
   disabled?: boolean;
 }) {
-  const isStripe = method === 'stripe';
+  const meta = providerMeta(method);
+  const Icon = meta.icon;
   return (
     <button
       type="button"
@@ -218,22 +220,55 @@ function PaymentMethodCard({
         disabled && 'opacity-50 cursor-not-allowed',
       )}
     >
-      <span className={cn(
-        'inline-flex size-9 shrink-0 items-center justify-center rounded-lg',
-        isStripe ? 'bg-[#635bff]/10 text-[#635bff]' : 'bg-[#4e2b22]/10 text-[#4e2b22]',
-      )}>
-        {isStripe ? <CreditCard className="size-4" aria-hidden /> : <BanknoteIcon className="size-4" aria-hidden />}
+      <span className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-lg', meta.color)}>
+        <Icon className="size-4" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-[#4e2b22]">
-          {isStripe ? 'Card / Stripe' : 'Pay at Studio'}
-        </p>
-        <p className="text-[11px] text-[#8b6b5c]">
-          {isStripe ? (disabled ? 'Not configured' : 'Secure card payment') : 'Cash or bank transfer'}
-        </p>
+        <p className="text-sm font-semibold text-[#4e2b22]">{displayName || meta.label}</p>
+        <p className="text-[11px] text-[#8b6b5c]">{disabled ? 'Not available for memberships' : (description || meta.fallbackDesc)}</p>
       </div>
     </button>
   );
+}
+
+function PaymentInfo({ method, selection }: { method: PaymentMethod; selection: Selection }) {
+  switch (method) {
+    case 'stripe':
+      return (
+        <div className="mt-4 rounded-xl bg-[#635bff]/10 p-4">
+          <p className="text-sm text-[#6b3d32]">
+            <span className="font-medium">Card payment via Stripe:</span>{' '}
+            You will be redirected to Stripe's secure checkout. Credits are added automatically once payment is confirmed.
+          </p>
+        </div>
+      );
+    case 'paypal':
+    case 'sepa':
+      return (
+        <div className="mt-4 rounded-xl bg-[#4e2b22]/5 p-4">
+          <p className="text-sm text-[#6b3d32]">
+            <span className="font-medium">Online payment:</span>{' '}
+            You will be redirected to complete payment. Credits are activated once the payment is confirmed.
+          </p>
+        </div>
+      );
+    case 'pay_at_studio':
+    case 'bank_transfer':
+    case 'cash':
+    default:
+      return (
+        <div className="mt-4 rounded-xl bg-[#d4a574]/10 p-4">
+          <p className="text-sm text-[#6b3d32]">
+            <span className="font-medium">Pay at Studio or via Bank Transfer:</span>{' '}
+            {selection?.kind === 'membership'
+              ? 'Your membership starts immediately and credits are granted every 7 days.'
+              : "We'll reserve your credits. They will be activated once the studio confirms your payment."}
+            {' '}Please pay within <strong>14 days</strong> — bring the amount to the studio or transfer to the bank account on your invoice.
+            An invoice (PDF) will be emailed to you.
+          </p>
+        </div>
+      );
+  }
 }
 
 // ─── Checkbox row ─────────────────────────────────────────────────────────────

@@ -3,13 +3,18 @@
 import { CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import type { PaymentProvider } from '@/lib/studio/studio.config.schema';
 
 interface PurchaseSuccessProps {
   packageName: string;
   dueDate: string;
   isWelcomeJourney: boolean;
-  paymentMethod: 'stripe' | 'pay_at_studio';
+  paymentMethod: PaymentProvider;
   onReset: () => void;
+}
+
+function isOfflinePayment(method: PaymentProvider): boolean {
+  return ['pay_at_studio', 'bank_transfer', 'cash'].includes(method);
 }
 
 export function PurchaseSuccess({ packageName, dueDate, isWelcomeJourney, paymentMethod, onReset }: PurchaseSuccessProps) {
@@ -24,12 +29,12 @@ export function PurchaseSuccess({ packageName, dueDate, isWelcomeJourney, paymen
         <h1 className="text-2xl font-bold text-[#4e2b22] mb-2">
           {isWelcomeJourney
             ? 'Welcome Journey purchased!'
-            : paymentMethod === 'pay_at_studio'
+            : isOfflinePayment(paymentMethod)
               ? 'Order placed — pending payment confirmation'
               : 'Credits added — book away!'}
         </h1>
         <p className="text-[#8b6b5c]">
-          {paymentMethod === 'pay_at_studio' ? (
+          {isOfflinePayment(paymentMethod) ? (
             <>Your <strong>{packageName}</strong> is reserved. Credits will be activated once the studio confirms your payment.</>
           ) : (
             <>Your <strong>{packageName}</strong> is already in your account.</>
@@ -48,7 +53,7 @@ export function PurchaseSuccess({ packageName, dueDate, isWelcomeJourney, paymen
           </div>
         </div>
         <p className="text-sm text-[#6b3d32]">
-          {paymentMethod === 'pay_at_studio' ? (
+          {isOfflinePayment(paymentMethod) ? (
             <>
               Your credits are <strong>reserved</strong> and will be activated once the studio confirms your payment.
               Please pay at the studio or via bank transfer within the next 14 days.

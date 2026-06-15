@@ -1,4 +1,5 @@
 import NextAuth from 'next-auth';
+import type { StudioMembershipRole } from '@/db/schema';
 
 declare module 'next-auth' {
   interface Session {
@@ -9,6 +10,8 @@ declare module 'next-auth' {
       image?: string;
       role: string;
       studioId?: string;
+      studioStatus?: string;
+      memberRole?: StudioMembershipRole;
     };
   }
 
@@ -19,6 +22,7 @@ declare module 'next-auth' {
     image?: string;
     role?: string;
     studioId?: string;
+    memberRole?: StudioMembershipRole;
   }
 }
 
@@ -27,5 +31,7 @@ declare module 'next-auth/jwt' {
     id: string;
     role: string;
     studioId?: string;
+    studioStatus?: string;
+    memberRole?: StudioMembershipRole;
   }
 }

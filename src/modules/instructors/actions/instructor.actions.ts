@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db } from '@/db';
-import { instructors, users } from '@/db/schema';
+import { instructors, users, studioMemberships } from '@/db/schema';
 import { eq, and, isNull, asc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth/auth';
@@ -110,15 +110,15 @@ export async function createInstructorAction(
     const studioId = await requireStudioId();
     const { name, email, phone, bio, avatarUrl, isActive, createAccount, password } = parsed.data;
 
-    // Email must be unique within the studio.
+    // Email must be unique globally (users are shared across studios).
     const [existingUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(and(eq(users.email, email.toLowerCase()), eq(users.studioId, studioId), isNull(users.deletedAt)))
+      .where(and(eq(users.email, email.toLowerCase()), isNull(users.deletedAt)))
       .limit(1);
 
     if (existingUser) {
-      return { success: false, error: 'An account with this email already exists.', code: 'INVALID_STATE' };
+      return { success: false, error: 'An account with this email already exists. Invite them via Members instead.', code: 'INVALID_STATE' };
     }
 
     const result = await db.transaction(async (tx) => {
@@ -151,6 +151,15 @@ export async function createInstructorAction(
           isActive,
         })
         .returning();
+
+      await tx.insert(studioMemberships).values({
+        userId: user.id,
+        studioId,
+        role: 'instructor',
+        status: 'active',
+        invitedByUserId: null,
+        joinedAt: new Date(),
+      });
 
       return { user, instructor };
     });
@@ -314,6 +323,11 @@ export async function deleteInstructorAction(
         .update(instructors)
         .set({ isActive: false, updatedAt: new Date() })
         .where(and(eq(instructors.id, parsed.data.id), eq(instructors.studioId, studioId)));
+
+      await tx
+        .update(studioMemberships)
+        .set({ status: 'cancelled', updatedAt: new Date() })
+        .where(and(eq(studioMemberships.userId, existing.userId), eq(studioMemberships.studioId, studioId)));
     });
 
     revalidatePath('/admin/instructors');

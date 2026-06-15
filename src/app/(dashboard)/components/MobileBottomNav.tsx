@@ -2,28 +2,44 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useMemo } from 'react';
 import { Home, CalendarDays, ListOrdered, CreditCard } from 'lucide-react';
+import { useStudioFeature, useBusinessModel } from '@/lib/studio';
 
 interface Props {
   hasOfferedSlots?: boolean;
 }
 
-const TABS = [
+type Tab = { href: string; label: string; icon: typeof Home; feature?: Parameters<typeof useStudioFeature>[0]; businessModel?: Parameters<typeof useBusinessModel>[0] };
+
+const TABS: Tab[] = [
   { href: '/', label: 'Dashboard', icon: Home },
   { href: '/book', label: 'Book', icon: CalendarDays },
   { href: '/bookings', label: 'My Classes', icon: ListOrdered },
-  { href: '/credits', label: 'Credits', icon: CreditCard },
+  { href: '/credits', label: 'Credits', icon: CreditCard, feature: 'showCreditBalance', businessModel: 'credits' },
 ];
 
 export function MobileBottomNav({ hasOfferedSlots = false }: Props) {
   const pathname = usePathname();
+  const showCreditBalance = useStudioFeature('showCreditBalance');
+  const creditsEnabled = useBusinessModel('credits');
+
+  const visibleTabs = useMemo(
+    () =>
+      TABS.filter((tab) => {
+        if (tab.feature === 'showCreditBalance' && !showCreditBalance) return false;
+        if (tab.businessModel === 'credits' && !creditsEnabled) return false;
+        return true;
+      }),
+    [showCreditBalance, creditsEnabled],
+  );
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       {/* Top border / hairline */}
       <div className="h-px bg-[#ede8e5]/80" />
       <div className="flex items-center justify-around bg-[#faf9f7]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom,0px)]">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = tab.href === '/'
             ? pathname === '/'
             : pathname === tab.href || pathname.startsWith(`${tab.href}/`);

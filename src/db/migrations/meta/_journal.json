@@ -78,6 +78,27 @@
       "when": 1781778234154,
       "tag": "0013_extend_studio_config",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781783043000,
+      "tag": "0014_multi_tenant_memberships",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781783050000,
+      "tag": "0015_rls_tenant_isolation",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781783060000,
+      "tag": "0016_multi_tenant_polish",
+      "breakpoints": true
     }
   ]
 }

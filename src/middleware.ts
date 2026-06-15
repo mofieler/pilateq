@@ -14,8 +14,9 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import { addSecurityHeaders } from '@/lib/security/security-headers';
-import { resolveTenantFromHostname } from '@/lib/studio/studio.config.tenant';
+import { resolveStudioFromHostname } from '@/lib/studio/server';
 import { isSupportedLocale, LOCALE_COOKIE_NAME, DEFAULT_LOCALE } from '@/lib/i18n/config';
+import { getAuthCookieName, useSecureCookies } from '@/lib/auth/session-cookie-name';
 import '@/lib/config/env-init';
 
 const PUBLIC_PREFIXES = [
@@ -58,10 +59,7 @@ function isOnboardingPublicPath(pathname: string): boolean {
 }
 const PUBLIC_EXACT = ['/'];
 
-// Match the auth cookie logic: only use secure cookies when NEXTAUTH_URL is HTTPS.
-const useSecureCookies =
-  process.env.NODE_ENV === 'production' &&
-  process.env.NEXTAUTH_URL?.startsWith('https://') === true;
+const sessionTokenName = getAuthCookieName('next-auth.session-token');
 
 /**
  * Detect preferred locale from Accept-Language header.
@@ -88,6 +86,21 @@ function generateNonce(): string {
     .replace(/=/g, '');
 }
 
+/** Clear the Auth.js session cookie and redirect to login. */
+function clearSessionAndRedirect(request: NextRequest, target: string, nonce: string): NextResponse {
+  const url = new URL(target, request.url);
+  const response = NextResponse.redirect(url);
+  response.cookies.set(sessionTokenName, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    secure: useSecureCookies(),
+    domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+    maxAge: 0,
+  });
+  return addSecurityHeaders(request, response, nonce);
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const nonce = generateNonce();
@@ -95,7 +108,7 @@ export async function middleware(request: NextRequest) {
   // Resolve tenant from request hostname. This is used later for studio
   // scoping and for the onboarding first-run flow.
   const hostname = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? 'localhost';
-  const tenant = resolveTenantFromHostname(hostname);
+  const resolvedStudio = await resolveStudioFromHostname(hostname);
 
   // ── Locale detection & cookie management ─────────────────────────────────
   // If the user has no locale cookie yet, detect from Accept-Language header
@@ -104,21 +117,20 @@ export async function middleware(request: NextRequest) {
   const detectedLocale = detectLocaleFromHeader(request);
 
   const isPublic =
-    PUBLIC_EXACT.includes(pathname) ||
-    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+    PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (isPublic) {
     const response = addSecurityHeaders(request, NextResponse.next(), nonce);
     response.headers.set('x-nonce', nonce);
-    if (tenant.slug) {
-      response.headers.set('x-studio-slug', tenant.slug);
+    if (resolvedStudio?.slug) {
+      response.headers.set('x-studio-slug', resolvedStudio.slug);
     }
     if (!localeCookie && detectedLocale) {
       response.cookies.set(LOCALE_COOKIE_NAME, detectedLocale, {
         path: '/',
         maxAge: 60 * 60 * 24 * 400, // ~400 days
         sameSite: 'lax',
-        secure: useSecureCookies,
+        secure: useSecureCookies(),
       });
     }
     return response;
@@ -129,6 +141,13 @@ export async function middleware(request: NextRequest) {
   if (!session?.user) {
     const loginUrl = new URL('/login', request.url);
     return addSecurityHeaders(request, NextResponse.redirect(loginUrl), nonce);
+  }
+
+  // Studio scoping: the session's active studio must match the resolved tenant.
+  // If the user is logged into the wrong studio, clear the session and make them
+  // sign in again on the correct hostname.
+  if (resolvedStudio?.id !== session.user.studioId) {
+    return clearSessionAndRedirect(request, '/login?error=WrongStudio', nonce);
   }
 
   // Onboarding gate: authenticated users with an incomplete studio onboarding
@@ -147,36 +166,40 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // /admin/* requires admin or instructor role
+  // /admin/* requires owner, admin, or instructor role.
   if (pathname.startsWith('/admin')) {
-    const role = session.user.role as string | undefined;
-    if (role !== 'admin' && role !== 'instructor') {
+    const memberRole = session.user.memberRole as string | undefined;
+    const allowedBaseRoles = ['owner', 'admin', 'instructor'];
+    if (!memberRole || !allowedBaseRoles.includes(memberRole)) {
       return addSecurityHeaders(request, NextResponse.redirect(new URL('/', request.url)), nonce);
     }
-  }
 
-  // Basic studio scoping: if the session has a studioId, it should match the
-  // resolved tenant. In single-tenant mode or during transition this is a no-op.
-  if (session.user.studioId && tenant.slug) {
-    // In SaaS mode, the user's studioId is bound to their account; the subdomain
-    // must correspond to their studio. Mismatch means they are logged into the
-    // wrong subdomain and should sign in again.
-    // NOTE: A production implementation should verify the slug -> studioId mapping
-    // from the database here. For now we allow the request to proceed and let
-    // server actions/queries enforce studio_id filtering.
+    // These sections are restricted to owners and admins.
+    const ownerAdminOnlyPrefixes = [
+      '/admin/settings',
+      '/admin/payments',
+      '/admin/tax',
+      '/admin/user-credits',
+      '/admin/credits',
+      '/admin/memberships',
+    ];
+    const requiresOwnerAdmin = ownerAdminOnlyPrefixes.some((p) => pathname.startsWith(p));
+    if (requiresOwnerAdmin && memberRole !== 'owner' && memberRole !== 'admin') {
+      return addSecurityHeaders(request, NextResponse.redirect(new URL('/admin', request.url)), nonce);
+    }
   }
 
   const response = addSecurityHeaders(request, NextResponse.next(), nonce);
   response.headers.set('x-nonce', nonce);
-  if (tenant.slug) {
-    response.headers.set('x-studio-slug', tenant.slug);
+  if (resolvedStudio?.slug) {
+    response.headers.set('x-studio-slug', resolvedStudio.slug);
   }
   if (!localeCookie && detectedLocale) {
     response.cookies.set(LOCALE_COOKIE_NAME, detectedLocale, {
       path: '/',
       maxAge: 60 * 60 * 24 * 400,
       sameSite: 'lax',
-      secure: useSecureCookies,
+      secure: useSecureCookies(),
     });
   }
   return response;

@@ -14,7 +14,6 @@ export const instructors = pgTable(
     // Soft-delete the user instead; this FK is the safety net.
     userId: uuid('user_id')
       .notNull()
-      .unique()
       .references(() => users.id, { onDelete: 'restrict' }),
     bio: text('bio'),
     spotifyPlaylistUrl: varchar('spotify_playlist_url', { length: 500 }),
@@ -32,7 +31,7 @@ export const instructors = pgTable(
   },
   (table) => ({
     studioIdIdx: index('instructors_studio_id_idx').on(table.studioId),
-    userIdIdx: uniqueIndex('instructors_user_id_idx').on(table.userId),
+    userIdIdx: uniqueIndex('instructors_user_id_idx').on(table.studioId, table.userId),
     isActiveIdx: index('instructors_is_active_idx').on(table.isActive),
     studioActiveIdx: index('instructors_studio_active_idx').on(table.studioId, table.isActive),
   }),

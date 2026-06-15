@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CreditTypeDot } from './CreditTypeDot';
 import { cn } from '@/lib/utils';
+import { useStudioFeatureFlag, useIsClassTypeEnabled } from '@/lib/studio';
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -203,6 +204,9 @@ function StatusBadge({ state, isBookedByUser }: { state: CardState; isBookedByUs
 
 export function ClassSessionCard(props: ClassSessionCardProps) {
   const router = useRouter();
+  const waitlistEnabled = useStudioFeatureFlag('waitlist');
+  const duoBookingEnabled = useStudioFeatureFlag('duoBooking');
+  const classTypeEnabled = useIsClassTypeEnabled(props.classType);
   const {
     id,
     name,
@@ -299,7 +303,7 @@ export function ClassSessionCard(props: ClassSessionCardProps) {
       <h3 className="mb-1 text-lg font-semibold leading-snug text-primary">{name}</h3>
 
       {/* Duo hint */}
-      {(classType === 'reformer_duo' || classType === 'mat_duo') && (
+      {duoBookingEnabled && (classType === 'reformer_duo' || classType === 'mat_duo') && (
         <p className="mb-3 text-xs text-[#8b6b5c] flex items-center gap-1.5">
           <UsersIcon className="size-3.5 shrink-0" aria-hidden />
           Book first — then invite your partner
@@ -369,7 +373,9 @@ export function ClassSessionCard(props: ClassSessionCardProps) {
 
         {!isCancelled && !isBookedByUser && !isBlocked && (
           <>
-            {needsWelcomeJourney ? (
+            {!classTypeEnabled ? (
+              <span className="text-xs font-medium text-[#8b6b5c]">Currently unavailable</span>
+            ) : needsWelcomeJourney ? (
               <button
                 type="button"
                 onClick={() => router.push('/welcome-journey')}
@@ -380,14 +386,20 @@ export function ClassSessionCard(props: ClassSessionCardProps) {
                 Welcome Journey required
               </button>
             ) : state === 'full' ? (
-              <Button
-                variant="outline"
-                onClick={() => onJoinWaitlist?.(id)}
-                disabled={isOnWaitlist}
-                className="rounded-xl border-[#c4a88a]/50 text-[#6b3d32] hover:bg-[#ede8e5]/80 min-h-[44px] px-4 py-2.5 text-sm sm:text-base disabled:opacity-60"
-              >
-                {isOnWaitlist ? 'On Waitlist' : 'Join Waitlist'}
-              </Button>
+              waitlistEnabled ? (
+                <Button
+                  variant="outline"
+                  onClick={() => onJoinWaitlist?.(id)}
+                  disabled={isOnWaitlist}
+                  className="rounded-xl border-[#c4a88a]/50 text-[#6b3d32] hover:bg-[#ede8e5]/80 min-h-[44px] px-4 py-2.5 text-sm sm:text-base disabled:opacity-60"
+                >
+                  {isOnWaitlist ? 'On Waitlist' : 'Join Waitlist'}
+                </Button>
+              ) : (
+                <span className="text-xs font-medium text-[#c45c4a]">Fully booked</span>
+              )
+            ) : !duoBookingEnabled && (classType === 'reformer_duo' || classType === 'mat_duo') ? (
+              <span className="text-xs font-medium text-[#8b6b5c]">Duo booking disabled</span>
             ) : insufficientCredits ? (
               <button
                 type="button"

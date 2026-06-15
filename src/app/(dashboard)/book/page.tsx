@@ -13,8 +13,16 @@ import { cancellationService } from '@/modules/booking/services/cancellation.ser
 import { isSessionClassType, getAcceptedCreditTypes } from '@/lib/config/class-types';
 import { creditService } from '@/modules/billing/services/credit.service';
 import { requireStudioId } from '@/lib/studio/studio-context';
+import { getStudioConfig } from '@/lib/studio/server';
+import type { StudioConfig } from '@/lib/studio';
 
-async function getUpcomingSessions(userId: string, welcomed: boolean): Promise<ClassSessionCardProps[]> {
+const DUO_CLASS_TYPES = new Set(['reformer_duo', 'mat_duo']);
+
+async function getUpcomingSessions(
+  userId: string,
+  welcomed: boolean,
+  config: StudioConfig,
+): Promise<ClassSessionCardProps[]> {
   const today = startOfStudioDay();
   const cutoff = addDays(today, 14);
 
@@ -114,9 +122,13 @@ async function getUpcomingSessions(userId: string, welcomed: boolean): Promise<C
 export default async function BookPage() {
   const authSession = await auth();
   const userId = authSession?.user?.id ?? '';
+  const config = await getStudioConfig();
 
-  const welcomed = userId ? await hasCompletedWelcome(userId) : true;
-  const sessions = userId ? await getUpcomingSessions(userId, welcomed) : [];
+  // If the studio disabled Welcome Journey, treat everyone as welcomed.
+  const welcomed = config.features.welcomeJourney
+    ? (userId ? await hasCompletedWelcome(userId) : true)
+    : true;
+  const sessions = userId ? await getUpcomingSessions(userId, welcomed, config) : [];
 
   return (
     <div className="space-y-6">

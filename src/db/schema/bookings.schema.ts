@@ -85,6 +85,8 @@ export const bookings = pgTable(
     userIdIdx: index('bookings_user_id_idx').on(table.userId),
     sessionIdIdx: index('bookings_session_id_idx').on(table.sessionId),
     statusIdx: index('bookings_status_idx').on(table.status),
+    // Tenant-scoped status lookups for studio dashboards
+    studioStatusIdx: index('bookings_studio_status_idx').on(table.studioId, table.status),
     // For dashboard queries: "my upcoming confirmed bookings"
     userStatusIdx: index('bookings_user_status_idx').on(table.userId, table.status),
     // Composite for session student lookups

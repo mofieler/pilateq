@@ -13,6 +13,16 @@ import { auth } from '@/lib/auth/auth';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { getActiveMembership } from '@/lib/studio/membership';
+
+export class StudioContextError extends Error {
+  code = 'STUDIO_CONTEXT_ERROR' as const;
+
+  constructor(message = 'No studio context available') {
+    super(message);
+    this.name = 'StudioContextError';
+  }
+}
 
 /**
  * Resolve studioId from the current auth session.
@@ -29,12 +39,26 @@ export async function getStudioIdFromSession(): Promise<string | null> {
 /**
  * Strict variant: throws if no studio can be resolved.
  * Use this when studio context is mandatory (e.g. credit transactions).
+ *
+ * Falls back to the user's highest-precedence active membership if the session
+ * has no explicit studioId (e.g. during migration or after a session reset).
  */
 export async function requireStudioId(): Promise<string> {
-  const studioId = await getStudioIdFromSession();
-  if (!studioId) {
-    throw new Error('No studio context available — cannot proceed without tenant isolation');
+  const session = await auth();
+  const userId = session?.user?.id;
+  let studioId = session?.user?.studioId;
+
+  if (!studioId && userId) {
+    const membership = await getActiveMembership(userId);
+    studioId = membership?.studioId;
   }
+
+  if (!studioId) {
+    throw new StudioContextError(
+      'No studio context available — cannot proceed without tenant isolation',
+    );
+  }
+
   return studioId;
 }
 

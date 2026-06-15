@@ -4,7 +4,7 @@ config({ path: '.env.local' });
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
-import { users, studios } from '../src/db/schema';
+import { users, studios, studioMemberships } from '../src/db/schema';
 import { eq } from 'drizzle-orm';
 
 const connectionString = process.env.DATABASE_URL!;
@@ -35,7 +35,16 @@ async function seedSimple() {
         role: 'admin',
         studioId: studio.id,
         passwordHash: await bcrypt.hash('password123', 10),
+        emailVerified: new Date(),
       }).returning();
+      await db.insert(studioMemberships).values({
+        userId: adminUser[0].id,
+        studioId: studio.id,
+        role: 'owner',
+        status: 'active',
+        invitedByUserId: null,
+        joinedAt: new Date(),
+      });
       console.log('✅ Admin user created:', adminUser[0].email);
     } catch (error: any) {
       if (error.code === '23505' && error.message?.includes('already exists')) {
@@ -56,7 +65,16 @@ async function seedSimple() {
         role: 'student',
         studioId: studio.id,
         passwordHash: await bcrypt.hash('password123', 10),
+        emailVerified: new Date(),
       }).returning();
+      await db.insert(studioMemberships).values({
+        userId: testUser[0].id,
+        studioId: studio.id,
+        role: 'student',
+        status: 'active',
+        invitedByUserId: null,
+        joinedAt: new Date(),
+      });
       console.log('✅ Test user created:', testUser[0].email);
     } catch (error: any) {
       if (error.code === '23505' && error.message?.includes('already exists')) {

@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { type ReactNode } from 'react';
+import { useStudioFeature, useBusinessModel } from '@/lib/studio';
 
 // ─── Types & data ─────────────────────────────────────────────────────────────
 
@@ -29,11 +31,20 @@ const CreditCardIcon = () => (
   </svg>
 );
 
-const NAV_LINKS = [
+type NavLink = {
+  href: string;
+  label: string;
+  icon: () => ReactNode;
+  exact: boolean;
+  feature?: Parameters<typeof useStudioFeature>[0];
+  businessModel?: Parameters<typeof useBusinessModel>[0];
+};
+
+const NAV_LINKS: NavLink[] = [
   { href: '/',         label: 'Dashboard',  icon: DashboardIcon, exact: true },
   { href: '/book',     label: 'Book Class', icon: CalendarIcon,  exact: false },
   { href: '/bookings', label: 'My Classes', icon: TicketIcon,    exact: false },
-  { href: '/credits',  label: 'Credits',    icon: CreditCardIcon, exact: false },
+  { href: '/credits',  label: 'Credits',    icon: CreditCardIcon, exact: false, businessModel: 'credits', feature: 'showCreditBalance' },
 ];
 
 function isActive(pathname: string, href: string, exact: boolean): boolean {
@@ -45,10 +56,18 @@ function isActive(pathname: string, href: string, exact: boolean): boolean {
 
 export function DesktopNavLinks({ hasOfferedSlots = false }: { hasOfferedSlots?: boolean }) {
   const pathname = usePathname();
+  const showCreditBalance = useStudioFeature('showCreditBalance');
+  const creditsEnabled = useBusinessModel('credits');
+
+  const visibleLinks = NAV_LINKS.filter((link) => {
+    if (link.feature === 'showCreditBalance' && !showCreditBalance) return false;
+    if (link.businessModel === 'credits' && !creditsEnabled) return false;
+    return true;
+  });
 
   return (
     <div className="hidden sm:flex items-center gap-0.5">
-      {NAV_LINKS.map(({ href, label, icon: Icon, exact }) => {
+      {visibleLinks.map(({ href, label, icon: Icon, exact }) => {
         const active = isActive(pathname, href, exact);
         const isBookLink = href === '/book';
         return (

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db } from '@/db';
-import { users, verificationTokens } from '@/db/schema';
+import { users, verificationTokens, studioMemberships } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -80,24 +80,37 @@ export async function registerAction(input: unknown) {
       return { success: false, error: 'No studio configured for this host.', code: 'NO_STUDIO', redirect: '/start' };
     }
 
-    // Create user with emailVerified = null (requires email verification)
-    await db.insert(users).values({
-      email: validated.email,
-      name: validated.name,
-      passwordHash,
-      role: 'student',
-      studioId: studio.id,
-      emailVerified: null,
-    });
-
-    // Generate secure verification token
+    // Create user + membership + verification token atomically.
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + APP_CONFIG.EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
 
-    await db.insert(verificationTokens).values({
-      identifier: validated.email,
-      token,
-      expires,
+    await db.transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({
+          email: validated.email,
+          name: validated.name,
+          passwordHash,
+          role: 'student',
+          studioId: studio.id,
+          emailVerified: null,
+        })
+        .returning();
+
+      await tx.insert(studioMemberships).values({
+        userId: user.id,
+        studioId: studio.id,
+        role: 'student',
+        status: 'active',
+        invitedByUserId: null,
+        joinedAt: new Date(),
+      });
+
+      await tx.insert(verificationTokens).values({
+        identifier: validated.email,
+        token,
+        expires,
+      });
     });
 
     // Send verification email (fire and forget — don't fail registration on email error)

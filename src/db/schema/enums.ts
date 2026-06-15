@@ -2,6 +2,13 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 
 export const userRoleEnum = pgEnum('user_role', ['student', 'instructor', 'admin']);
 
+export const studioMembershipRoleEnum = pgEnum('studio_membership_role', [
+  'owner',
+  'admin',
+  'instructor',
+  'student',
+]);
+
 export const studioStatusEnum = pgEnum('studio_status', [
   'onboarding',
   'active',

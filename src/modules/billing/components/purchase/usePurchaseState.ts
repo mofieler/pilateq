@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import type { CreditType } from '@/lib/config/class-types';
+import type { PaymentProvider } from '@/lib/studio/studio.config.schema';
+import { useStudioConfig } from '@/lib/studio';
 import { subscribeMembershipAction } from '@/modules/billing/actions/membership.actions';
 
 function generateIdempotencyKey(): string {
@@ -51,7 +53,7 @@ export type Selection =
   | { kind: 'membership'; id: string; item: MembershipPlan }
   | null;
 
-export type PaymentMethod = 'stripe' | 'pay_at_studio';
+export type PaymentMethod = PaymentProvider;
 
 export interface PurchaseResult {
   success: boolean;
@@ -75,9 +77,15 @@ function formatPrice(cents: number, currency: string): string {
 export function usePurchaseState(userId: string | undefined) {
   const router = useRouter();
   const { status } = useSession();
+  const config = useStudioConfig();
 
   const [selection, setSelection] = useState<Selection>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_at_studio');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
+    const enabled = config.paymentProviders.filter((p) => p.enabled).map((p) => p.provider);
+    const preferred = config.paymentOptions.defaultPaymentProvider;
+    if (enabled.includes(preferred)) return preferred;
+    return enabled[0] ?? 'pay_at_studio';
+  });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedWithdrawal, setAcceptedWithdrawal] = useState(false);
 

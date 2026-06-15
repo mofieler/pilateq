@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db } from '@/db';
-import { studios, studioSettings, users, verificationTokens } from '@/db/schema';
+import { studios, studioSettings, users, verificationTokens, studioMemberships } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -214,6 +214,15 @@ export async function claimStudioAction(input: unknown) {
         .returning();
 
       await tx.update(studios).set({ createdByUserId: adminUser.id }).where(eq(studios.id, studio.id));
+
+      await tx.insert(studioMemberships).values({
+        userId: adminUser.id,
+        studioId: studio.id,
+        role: 'owner',
+        status: 'active',
+        invitedByUserId: null,
+        joinedAt: new Date(),
+      });
 
       return { studio, adminUser };
     });

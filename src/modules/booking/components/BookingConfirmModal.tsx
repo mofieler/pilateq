@@ -22,6 +22,7 @@ import { CreditTypeDot } from './CreditTypeDot';
 import type { ServiceErrorCode } from '@/modules/billing/services/credit.service';
 import type { ClassSessionCardProps } from './ClassSessionCard';
 import { getAcceptedCreditTypes, getCreditTypeLabel } from '@/lib/config/class-types';
+import { useStudioFeatureFlag } from '@/lib/studio';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ function isDuoClass(classType: ClassSessionCardProps['classType']): boolean {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function BookingConfirmModal({ session, onClose }: BookingConfirmModalProps) {
+  const duoBookingEnabled = useStudioFeatureFlag('duoBooking');
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<Step>('confirm');
   const [duoInvite, setDuoInvite] = useState<{ token: string; expiresAt: Date } | null>(null);
@@ -124,7 +126,7 @@ export function BookingConfirmModal({ session, onClose }: BookingConfirmModalPro
       const bookingId = result.data?.id;
 
       // For duo classes, generate an invite link before closing
-      if (isDuoClass(session.classType) && bookingId) {
+      if (duoBookingEnabled && isDuoClass(session.classType) && bookingId) {
         setNewBookingId(bookingId);
         const ok = await tryCreateDuoInvite(bookingId);
         if (ok) return;
@@ -213,7 +215,7 @@ export function BookingConfirmModal({ session, onClose }: BookingConfirmModalPro
               <AlertDialogDescription>with {session.instructorName}</AlertDialogDescription>
             </AlertDialogHeader>
 
-            {isDuoClass(session.classType) && (
+            {duoBookingEnabled && isDuoClass(session.classType) && (
               <p className="text-xs text-[#6b4a3d] flex items-center gap-1.5 -mt-1">
                 <span className="text-[#c4a88a]">●</span>
                 After booking you'll get a link to invite your duo partner

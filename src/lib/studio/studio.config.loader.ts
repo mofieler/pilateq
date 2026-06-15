@@ -34,6 +34,19 @@ export type { TenantResolution };
 let dbLoadAttempted = false;
 let dbLoadAvailable = false;
 
+function isLocalhostOrDev(hostname: string): boolean {
+  const clean = hostname.toLowerCase().split(':')[0];
+  return (
+    clean === 'localhost' ||
+    clean.endsWith('.localhost') ||
+    /^127\./.test(clean) ||
+    /^192\.168\./.test(clean) ||
+    /^10\./.test(clean) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(clean) ||
+    /^\d+\.\d+\.\d+\.\d+$/.test(clean)
+  );
+}
+
 async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<StudioConfig | null> {
   // Lazy-load DB modules to avoid import errors while the schema is being migrated.
   if (!dbLoadAttempted) {
@@ -58,7 +71,7 @@ async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<Stu
 
     // Dynamic lookup with fallbacks while schema is being migrated.
     const studiosTable = (schema as unknown as Record<string, unknown>).studios as
-      | { slug: unknown; id: unknown; name: unknown; status: unknown; timezone: unknown; defaultLocale: unknown; updatedAt: unknown }
+      | { slug: unknown; customDomain: unknown; id: unknown; name: unknown; status: unknown; timezone: unknown; defaultLocale: unknown; updatedAt: unknown }
       | undefined;
     const settingsTable = (schema as unknown as Record<string, unknown>).studioSettings as
       | { studioId: unknown; configJson: unknown }
@@ -75,8 +88,27 @@ async function loadStudioConfigFromDb(resolution: TenantResolution): Promise<Stu
         .from(studiosTable as never)
         .where(eq(studiosTable.slug as never, resolution.slug))
         .limit(1);
-    } else {
-      // Single-tenant fallback: load the first active studio
+    } else if (resolution.isCustomDomain) {
+      [studioRow] = await db
+        .select()
+        .from(studiosTable as never)
+        .where(eq(studiosTable.customDomain as never, resolution.hostname))
+        .limit(1);
+    }
+
+    if (!studioRow) {
+      // In production, never fall back to an arbitrary studio row. Only
+      // localhost/development and static generation are allowed to use the
+      // first studio as a safe fallback.
+      const allowFallback =
+        process.env.NODE_ENV !== 'production' ||
+        isLocalhostOrDev(resolution.hostname) ||
+        resolution.hostname === 'localhost';
+
+      if (!allowFallback) {
+        return null;
+      }
+
       [studioRow] = await db.select().from(studiosTable as never).limit(1);
     }
 

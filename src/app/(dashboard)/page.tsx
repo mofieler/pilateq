@@ -168,7 +168,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── Welcome Journey Offer Banner ────────────────────────────────────── */}
-      {welcomeJourneyRes.success && welcomeJourneyRes.data?.request?.status === 'slots_offered' && (
+      {config.featureVisibility.showWelcomeJourney && welcomeJourneyRes.success && welcomeJourneyRes.data?.request?.status === 'slots_offered' && (
         <div className="rounded-2xl border border-[#d4a574]/30 bg-gradient-to-r from-[#d4a574]/15 to-[#d4a574]/5 p-5 shadow-[0_4px_12px_rgba(212,165,116,0.08)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#d4a574]/20 text-[#6b3d32]">
@@ -214,12 +214,15 @@ export default async function DashboardPage() {
       />
 
       {/* ── Open bills ─────────────────────────────────────────────────────── */}
-      <OpenBillsCard openBills={billing.openBills} />
+      {config.featureVisibility.showInvoices && <OpenBillsCard openBills={billing.openBills} />}
 
       {/* ── Active membership ───────────────────────────────────────────────── */}
-      <MembershipStatusCard membership={membership ?? null} />
+      {config.featureVisibility.showMemberships && config.enabledBusinessModels.includes('memberships') && (
+        <MembershipStatusCard membership={membership ?? null} />
+      )}
 
       {/* ── Credits ────────────────────────────────────────────────────────── */}
+      {config.featureVisibility.showCreditBalance && config.enabledBusinessModels.includes('credits') && (
       <section className="rounded-2xl bg-linear-to-br from-[#faf9f7]/80 to-[#ede8e5]/60 p-6 backdrop-blur-xl border border-[#ede8e5]/80 shadow-[0_4px_20px_rgba(78,43,34,0.04)]">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -238,6 +241,7 @@ export default async function DashboardPage() {
         </div>
         <CreditBalanceDisplay balances={balances} />
       </section>
+      )}
 
       {/* ── Upcoming bookings ───────────────────────────────────────────────── */}
       <section>

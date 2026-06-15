@@ -15,6 +15,7 @@ export * from './rate-limits.schema';
 
 export * from './audit-logs.schema';
 export * from './studios.schema';
+export * from './memberships.schema';
 export * from './classpass-checkins.schema';
 
 
@@ -42,6 +43,7 @@ import type { cancellationMercyUses } from './cancellation-mercy.schema';
 import type { welcomeJourneyRequests } from './welcome.schema';
 import type { rateLimits } from './rate-limits.schema';
 import type { auditLogs } from './audit-logs.schema';
+import type { studioMemberships, studioInvites } from './memberships.schema';
 import type {
   userRoleEnum,
   classTypeEnum,
@@ -60,6 +62,7 @@ import type {
   duoInviteStatusEnum,
   invoiceReminderTypeEnum,
   membershipStatusEnum,
+  studioMembershipRoleEnum,
   auditActionEnum,
 } from './enums';
 
@@ -148,6 +151,13 @@ export type NewRateLimit = InferInsertModel<typeof rateLimits>;
 export type AuditLog = InferSelectModel<typeof auditLogs>;
 export type NewAuditLog = InferInsertModel<typeof auditLogs>;
 
+// Studio memberships
+export type StudioMembership = InferSelectModel<typeof studioMemberships>;
+export type NewStudioMembership = InferInsertModel<typeof studioMemberships>;
+
+export type StudioInvite = InferSelectModel<typeof studioInvites>;
+export type NewStudioInvite = InferInsertModel<typeof studioInvites>;
+
 
 // ─── Enum value types — use these instead of raw strings ─────────────────────
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
@@ -167,4 +177,5 @@ export type BadgeTriggerType = (typeof badgeTriggerTypeEnum.enumValues)[number];
 export type DuoInviteStatus = (typeof duoInviteStatusEnum.enumValues)[number];
 export type InvoiceReminderType = (typeof invoiceReminderTypeEnum.enumValues)[number];
 export type MembershipStatus = (typeof membershipStatusEnum.enumValues)[number];
+export type StudioMembershipRole = (typeof studioMembershipRoleEnum.enumValues)[number];
 export type AuditAction = (typeof auditActionEnum.enumValues)[number];

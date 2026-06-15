@@ -12,6 +12,8 @@ import { DesktopNavLinks } from './components/DesktopNavLinks';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { getMyWelcomeJourneyRequest } from '@/modules/welcome/actions/welcomeRequest.actions';
 import { NavProfileMenu } from '@/modules/users/components/NavProfileMenu';
+import { StudioSwitcher } from '@/components/shared/StudioSwitcher';
+import { getMyMembershipsAction } from '@/modules/studio/actions/memberships.actions';
 
 const ArrowRightIcon = () => (
   <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -27,6 +29,9 @@ export default async function DashboardLayout({ children }:  { children: React.R
   if (!session) redirect('/login');
 
   const needsProfileCompletion = (session.user as any)?.needsProfileCompletion === true;
+
+  const membershipsResult = await getMyMembershipsAction();
+  const memberships = membershipsResult.success ? membershipsResult.data : [];
 
   let hasOfferedSlots = false;
   try {
@@ -62,6 +67,8 @@ export default async function DashboardLayout({ children }:  { children: React.R
 
           {/* Right: email + sign out */}
           <div className="flex items-center gap-3">
+            <StudioSwitcher initialMemberships={memberships} />
+
             <NavProfileMenu
               name={session.user?.name ?? 'User'}
               email={session.user?.email ?? ''}

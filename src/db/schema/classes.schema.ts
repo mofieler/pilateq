@@ -115,6 +115,8 @@ export const classSessions = pgTable(
     startsAtIdx: index('class_sessions_starts_at_idx').on(table.startsAt),
     statusIdx: index('class_sessions_status_idx').on(table.status),
     studioStatusIdx: index('class_sessions_studio_status_idx').on(table.studioId, table.status),
+    // Tenant-scoped schedule range queries
+    studioStartsAtIdx: index('class_sessions_studio_starts_at_idx').on(table.studioId, table.startsAt),
     instructorIdx: index('class_sessions_instructor_idx').on(table.instructorId),
     // Composite index for the most common query: upcoming scheduled sessions
     scheduleIdx: index('class_sessions_schedule_idx').on(table.startsAt, table.status),

@@ -22,3 +22,19 @@ export {
 export type { ResolvedStudio } from './studio.resolver';
 
 export type { TenantResolution } from './studio.config.tenant';
+
+export {
+  MembershipError,
+  getMembership,
+  requireMembership,
+  getUserMemberships,
+  getActiveMembership,
+  createMembership,
+  updateMembershipRole,
+  removeMembership,
+  hasRole,
+  createStudioInvite,
+  getStudioInviteByTokenHash,
+  markStudioInviteUsed,
+} from './membership';
+export type { StudioMembership, StudioMembershipRole } from '@/db/schema';

@@ -108,6 +108,9 @@ export const creditTransactions = pgTable(
     studioIdIdx: index('credit_transactions_studio_id_idx').on(table.studioId),
     userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
     typeIdx: index('credit_transactions_type_idx').on(table.type),
+    // Tenant-scoped balance and ledger lookups
+    studioUserIdx: index('credit_transactions_studio_user_idx').on(table.studioId, table.userId),
+    studioTypeIdx: index('credit_transactions_studio_type_idx').on(table.studioId, table.type),
     bookingIdIdx: index('credit_transactions_booking_id_idx').on(table.bookingId),
     purchaseIdIdx: index('credit_transactions_purchase_id_idx').on(table.purchaseId),
     // Core balance query: WHERE user_id = ? AND credit_type = ?
@@ -163,6 +166,8 @@ export const creditPurchases = pgTable(
     userIdIdx: index('credit_purchases_user_id_idx').on(table.userId),
     packageIdIdx: index('credit_purchases_package_id_idx').on(table.packageId),
     statusIdx: index('credit_purchases_status_idx').on(table.paymentStatus),
+    // Tenant-scoped payment status lookups
+    studioStatusIdx: index('credit_purchases_studio_status_idx').on(table.studioId, table.paymentStatus),
     methodIdx: index('credit_purchases_method_idx').on(table.paymentMethod),
     stripeSessionUniqueIdx: uniqueIndex('credit_purchases_stripe_session_unique_idx').on(table.stripeSessionId),
     invoiceNumberIdx: index('credit_purchases_invoice_number_idx').on(table.invoiceNumber),
@@ -243,6 +248,8 @@ export const userMemberships = pgTable(
   },
   (table) => ({
     studioIdIdx: index('user_memberships_studio_id_idx').on(table.studioId),
+    // Tenant-scoped active subscription lookups
+    studioStatusIdx: index('user_memberships_studio_status_idx').on(table.studioId, table.status),
     userIdIdx: index('user_memberships_user_id_idx').on(table.userId),
     planIdIdx: index('user_memberships_plan_id_idx').on(table.planId),
     grantSweepIdx: index('user_memberships_grant_sweep_idx').on(table.status, table.nextCreditGrantAt),

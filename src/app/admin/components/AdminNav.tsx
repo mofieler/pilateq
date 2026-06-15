@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { useStudioFeature, useStudioFeatureFlag, useBusinessModel, useHasExternalAccessProviders } from '@/lib/studio';
 import { createPortal } from 'react-dom';
 import { MenuIcon, XIcon, ChevronDownIcon } from 'lucide-react';
 import { APP_CONFIG } from '@/constants/APP_CONFIG';
@@ -84,7 +85,25 @@ const StatsIcon = () => (
 
 // ── Nav structure ──────────────────────────────────────────────────────────────
 
-const ADMIN_NAV_GROUPS = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: () => ReactNode;
+  desc: string;
+  feature?: Parameters<typeof useStudioFeature>[0];
+  featureFlag?: Parameters<typeof useStudioFeatureFlag>[0];
+  businessModel?: Parameters<typeof useBusinessModel>[0];
+  accessProviders?: boolean;
+};
+
+type NavGroup = {
+  id: string;
+  label: string;
+  icon: () => ReactNode;
+  items: NavItem[];
+};
+
+const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     id: 'scheduling',
     label: 'Scheduling',
@@ -100,12 +119,12 @@ const ADMIN_NAV_GROUPS = [
     label: 'Billing',
     icon: PaymentIcon,
     items: [
-      { href: '/admin/credits',      label: 'Packages',    icon: CoinsIcon,      desc: 'Credit packages & pricing' },
-      { href: '/admin/memberships',  label: 'Memberships', icon: MembershipIcon, desc: 'Plans & member subscriptions' },
-      { href: '/admin/user-credits', label: 'User Credits', icon: UsersIcon,     desc: 'Balances & transactions' },
-      { href: '/admin/payments',     label: 'Payments',    icon: PaymentIcon,    desc: 'Invoices & payment history' },
-      { href: '/admin/class-passes', label: 'Class Passes', icon: TicketIcon,     desc: 'Check-ins & partner reconciliation' },
-      { href: '/admin/tax',          label: 'Tax & Export', icon: TaxIcon,        desc: 'Annual overview for accountants' },
+      { href: '/admin/credits',      label: 'Packages',    icon: CoinsIcon,      desc: 'Credit packages & pricing', businessModel: 'credits' },
+      { href: '/admin/memberships',  label: 'Memberships', icon: MembershipIcon, desc: 'Plans & member subscriptions', businessModel: 'memberships' },
+      { href: '/admin/user-credits', label: 'User Credits', icon: UsersIcon,     desc: 'Balances & transactions', businessModel: 'credits' },
+      { href: '/admin/payments',     label: 'Payments',    icon: PaymentIcon,    desc: 'Invoices & payment history', feature: 'showInvoices' },
+      { href: '/admin/class-passes', label: 'Class Passes', icon: TicketIcon,     desc: 'Check-ins & partner reconciliation', accessProviders: true },
+      { href: '/admin/tax',          label: 'Tax & Export', icon: TaxIcon,        desc: 'Annual overview for accountants', feature: 'showInvoices' },
     ],
   },
   {
@@ -113,8 +132,9 @@ const ADMIN_NAV_GROUPS = [
     label: 'Settings',
     icon: SyncIcon,
     items: [
+      { href: '/admin/members', label: 'Members', icon: UsersIcon, desc: 'Invite and manage studio members' },
       { href: '/admin/settings', label: 'Studio Settings', icon: SettingsIcon, desc: 'Business model, payments, branding' },
-      { href: '/admin/calendar-sync', label: 'Google Calendar', icon: SyncIcon, desc: 'Calendar synchronisation' },
+      { href: '/admin/calendar-sync', label: 'Google Calendar', icon: SyncIcon, desc: 'Calendar synchronisation', featureFlag: 'googleCalendarSync' },
     ],
   },
 ];
@@ -146,7 +166,7 @@ function isActive(pathname: string, href: string): boolean {
 
 // ── Desktop hover dropdown ────────────────────────────────────────────────────
 
-function NavDropdown({ group }: { group: (typeof ADMIN_NAV_GROUPS)[number] }) {
+function NavDropdown({ group }: { group: NavGroup }) {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
@@ -237,7 +257,7 @@ function MobileDrawer({
 }: {
   onClose: () => void;
   visible: boolean;
-  navGroups: typeof ADMIN_NAV_GROUPS;
+  navGroups: NavGroup[];
   role: 'admin' | 'instructor';
 }) {
   const pathname = usePathname();
@@ -389,7 +409,28 @@ export function AdminNav({ role }: { role: 'admin' | 'instructor' }) {
   const [visible, setVisible] = useState(false);
   const pathname = usePathname();
   const isDashboard = pathname === '/admin';
-  const navGroups = role === 'instructor' ? INSTRUCTOR_NAV_GROUPS : ADMIN_NAV_GROUPS;
+  const creditsEnabled = useBusinessModel('credits');
+  const membershipEnabled = useBusinessModel('memberships');
+  const showInvoices = useStudioFeature('showInvoices');
+  const googleCalendarSyncEnabled = useStudioFeatureFlag('googleCalendarSync');
+  const hasExternalAccessProviders = useHasExternalAccessProviders();
+
+  const navGroups = useMemo<NavGroup[]>(() => {
+    if (role === 'instructor') return INSTRUCTOR_NAV_GROUPS;
+    return ADMIN_NAV_GROUPS
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          if (item.businessModel === 'credits' && !creditsEnabled) return false;
+          if (item.businessModel === 'memberships' && !membershipEnabled) return false;
+          if (item.feature === 'showInvoices' && !showInvoices) return false;
+          if (item.featureFlag === 'googleCalendarSync' && !googleCalendarSyncEnabled) return false;
+          if (item.accessProviders && !hasExternalAccessProviders) return false;
+          return true;
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [role, creditsEnabled, membershipEnabled, showInvoices]);
 
   useEffect(() => setMounted(true), []);
 

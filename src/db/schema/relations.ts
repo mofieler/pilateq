@@ -4,7 +4,10 @@ import { relations } from 'drizzle-orm';
 import { users, accounts, sessions } from './users.schema';
 
 // Studios
-import { studios } from './studios.schema';
+import { studios, studioSettings } from './studios.schema';
+
+// Memberships
+import { studioMemberships, studioInvites } from './memberships.schema';
 
 // Instructors & Classes
 import { instructors } from './instructors.schema';
@@ -50,6 +53,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [instructors.userId],
   }),
+  studioMemberships: many(studioMemberships, { relationName: 'membership_user' }),
+  sentStudioInvites: many(studioInvites, { relationName: 'invite_sender' }),
   bookings: many(bookings),
   creditTransactions: many(creditTransactions, { relationName: 'transaction_owner' }),
   processedCreditTransactions: many(creditTransactions, { relationName: 'transaction_processor' }),
@@ -75,6 +80,16 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}));
+
+// ─── studios ─────────────────────────────────────────────────────────────────
+export const studiosRelations = relations(studios, ({ one, many }) => ({
+  settings: one(studioSettings, {
+    fields: [studios.id],
+    references: [studioSettings.studioId],
+  }),
+  studioMemberships: many(studioMemberships),
+  studioInvites: many(studioInvites),
 }));
 
 // ─── instructors ─────────────────────────────────────────────────────────────
@@ -269,6 +284,36 @@ export const welcomeJourneyRequestsRelations = relations(welcomeJourneyRequests,
   user: one(users, {
     fields: [welcomeJourneyRequests.userId],
     references: [users.id],
+  }),
+}));
+
+// ─── studioMemberships ───────────────────────────────────────────────────────
+export const studioMembershipsRelations = relations(studioMemberships, ({ one }) => ({
+  user: one(users, {
+    fields: [studioMemberships.userId],
+    references: [users.id],
+    relationName: 'membership_user',
+  }),
+  studio: one(studios, {
+    fields: [studioMemberships.studioId],
+    references: [studios.id],
+  }),
+  invitedByUser: one(users, {
+    fields: [studioMemberships.invitedByUserId],
+    references: [users.id],
+  }),
+}));
+
+// ─── studioInvites ───────────────────────────────────────────────────────────
+export const studioInvitesRelations = relations(studioInvites, ({ one }) => ({
+  studio: one(studios, {
+    fields: [studioInvites.studioId],
+    references: [studios.id],
+  }),
+  invitedByUser: one(users, {
+    fields: [studioInvites.invitedByUserId],
+    references: [users.id],
+    relationName: 'invite_sender',
   }),
 }));
 

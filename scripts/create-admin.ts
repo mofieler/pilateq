@@ -4,7 +4,7 @@ config({ path: '.env.production' });
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
-import { users, studios } from '../src/db/schema';
+import { users, studios, studioMemberships } from '../src/db/schema';
 import { eq } from 'drizzle-orm';
 
 const connectionString = process.env.DATABASE_URL!;
@@ -26,60 +26,91 @@ async function createAdminAndStudent() {
     }
 
     // Create admin user
-    const adminHash = await bcrypt.hash('admin123', 12);
+    const adminEmail = 'admin@example.com';
+    const adminPassword = 'Test1234!';
+    const adminHash = await bcrypt.hash(adminPassword, 12);
 
-    // Check if admin already exists
     const existingAdmin = await db
       .select()
       .from(users)
-      .where(eq(users.email, 'admin@pilates.de'))
+      .where(eq(users.email, adminEmail))
       .limit(1);
 
     if (existingAdmin.length === 0) {
-      await db.insert(users).values({
-        email: 'admin@pilates.de',
-        name: 'Admin User',
-        role: 'admin',
+      const [adminUser] = await db
+        .insert(users)
+        .values({
+          email: adminEmail,
+          name: 'Admin User',
+          role: 'admin',
+          studioId: studio.id,
+          passwordHash: adminHash,
+          emailVerified: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      await db.insert(studioMemberships).values({
+        userId: adminUser.id,
         studioId: studio.id,
-        passwordHash: adminHash,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        role: 'owner',
+        status: 'active',
+        invitedByUserId: null,
+        joinedAt: new Date(),
       });
-      console.log('✅ Admin created: admin@pilates.de / admin123');
+
+      console.log(`✅ Admin created: ${adminEmail} / ${adminPassword}`);
     } else {
-      console.log('⚠️  Admin already exists: admin@pilates.de');
+      console.log(`⚠️  Admin already exists: ${adminEmail}`);
     }
 
     // Create student user
-    const studentHash = await bcrypt.hash('student123', 12);
+    const studentEmail = 'student@example.com';
+    const studentPassword = 'Test1234!';
+    const studentHash = await bcrypt.hash(studentPassword, 12);
 
     const existingStudent = await db
       .select()
       .from(users)
-      .where(eq(users.email, 'student@pilates.de'))
+      .where(eq(users.email, studentEmail))
       .limit(1);
 
     if (existingStudent.length === 0) {
-      await db.insert(users).values({
-        email: 'student@pilates.de',
-        name: 'Student User',
-        role: 'student',
+      const [studentUser] = await db
+        .insert(users)
+        .values({
+          email: studentEmail,
+          name: 'Student User',
+          role: 'student',
+          studioId: studio.id,
+          passwordHash: studentHash,
+          emailVerified: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      await db.insert(studioMemberships).values({
+        userId: studentUser.id,
         studioId: studio.id,
-        passwordHash: studentHash,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        role: 'student',
+        status: 'active',
+        invitedByUserId: null,
+        joinedAt: new Date(),
       });
-      console.log('✅ Student created: student@pilates.de / student123');
+
+      console.log(`✅ Student created: ${studentEmail} / ${studentPassword}`);
     } else {
-      console.log('⚠️  Student already exists: student@pilates.de');
+      console.log(`⚠️  Student already exists: ${studentEmail}`);
     }
 
     console.log('');
     console.log('✅ Setup complete!');
     console.log('');
     console.log('Login credentials:');
-    console.log('  Admin:   admin@pilates.de / admin123');
-    console.log('  Student: student@pilates.de / student123');
+    console.log(`  Admin:   ${adminEmail} / ${adminPassword}`);
+    console.log(`  Student: ${studentEmail} / ${studentPassword}`);
 
   } catch (error) {
     console.error('❌ Error:', error);

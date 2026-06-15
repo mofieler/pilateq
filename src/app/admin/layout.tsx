@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { auth, signOut } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import { AdminNav } from './components/AdminNav';
+import { StudioSwitcher } from '@/components/shared/StudioSwitcher';
+import { getMyMembershipsAction } from '@/modules/studio/actions/memberships.actions';
 import { APP_CONFIG } from '@/constants/APP_CONFIG';
 
 const ArrowRightIcon = () => (
@@ -21,6 +23,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/');
   }
 
+  const membershipsResult = await getMyMembershipsAction();
+  const memberships = membershipsResult.success ? membershipsResult.data : [];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#faf9f7] to-[#f5f3f1] overflow-x-clip">
       <nav className="sticky top-0 z-50 border-b border-[#ede8e5]/80 bg-[#faf9f7]/90 backdrop-blur-xl px-4 sm:px-6 py-3">
@@ -36,8 +41,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <AdminNav role={session.user.role as 'admin' | 'instructor'} />
           </div>
 
-          {/* Right: email + sign out */}
+          {/* Right: switcher + email + sign out */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <StudioSwitcher initialMemberships={memberships} />
+
             <div className="hidden lg:flex items-center gap-2 rounded-full bg-[#ede8e5]/60 px-3 py-2">
               <div className="size-7 rounded-full bg-gradient-to-br from-[#4e2b22] to-[#6b3d32] flex items-center justify-center text-[#faf9f7] text-xs font-semibold">
                 {session.user?.name?.charAt(0) || session.user?.email?.charAt(0)}
