@@ -182,6 +182,28 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Platform apex domain (e.g. pilateq.de): no tenant is resolved here.
+  // Authenticated non-superadmin users should be redirected to their studio
+  // subdomain instead of getting stuck on the wrong hostname.
+  if (!resolvedStudio && session.user.studioId) {
+    const { db } = await import('@/db');
+    const { eq } = await import('drizzle-orm');
+    const { studios } = await import('@/db/schema');
+    const [studioRow] = await db
+      .select({ slug: studios.slug })
+      .from(studios)
+      .where(eq(studios.id, session.user.studioId as string))
+      .limit(1);
+
+    if (studioRow?.slug) {
+      const platformDomain =
+        process.env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? 'pilateq.de';
+      const target = new URL(request.url);
+      target.hostname = `${studioRow.slug}.${platformDomain}`;
+      return addSecurityHeaders(request, NextResponse.redirect(target), nonce);
+    }
+  }
+
   // Studio scoping: the session's active studio must match the resolved tenant.
   // If the user is logged into the wrong studio, clear the session and make them
   // sign in again on the correct hostname.

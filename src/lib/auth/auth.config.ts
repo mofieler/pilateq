@@ -192,7 +192,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(
               }
 
               // Resolve the studio for the current hostname and verify the user
-              // has an active membership there.
+              // has an active membership there. On the platform apex domain no
+              // studio is resolved, so fall back to the user's active membership.
               const host =
                 headersList.get("x-forwarded-host") ??
                 headersList.get("host") ??
@@ -201,18 +202,23 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(
                 await import("@/lib/studio/server");
               const studio = await resolveStudioFromHostname(host);
 
-              if (!studio) {
-                logger.warn(
-                  { userId: user.id, host },
-                  "Credentials authorize rejected — no studio resolved",
-                );
-                return null;
+              let membership: Awaited<ReturnType<typeof getMembership>> | undefined;
+              if (studio) {
+                membership = await getMembership(user.id, studio.id);
               }
 
-              const membership = await getMembership(user.id, studio.id);
+              if (!membership || membership.status !== "active") {
+                if (!studio) {
+                  const fallback = await getActiveMembership(user.id);
+                  if (fallback && fallback.status === "active") {
+                    membership = fallback;
+                  }
+                }
+              }
+
               if (!membership || membership.status !== "active") {
                 logger.warn(
-                  { userId: user.id, studioId: studio.id },
+                  { userId: user.id, host, studioId: studio?.id },
                   "Credentials authorize rejected — no active membership",
                 );
                 return null;
@@ -271,7 +277,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(
           // Credentials provider already verified active membership in authorize().
           if (account?.provider === "credentials") {
             if (!user.memberRole || !user.studioId) {
-              const membership = await getMembership(user.id!, studio.id);
+              const membership = studio
+                ? await getMembership(user.id!, studio.id)
+                : await getActiveMembership(user.id!);
               if (!membership || membership.status !== "active") {
                 return "/?error=NoMembership";
               }
